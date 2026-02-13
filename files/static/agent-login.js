@@ -94,5 +94,15 @@
     }
   });
 
+  document.getElementById("btnTogglePassword")?.addEventListener("click", () => {
+    const input = document.getElementById("loginPassword");
+    const btn = document.getElementById("btnTogglePassword");
+    if (!input || !btn) return;
+    const isHidden = input.type === "password";
+    input.type = isHidden ? "text" : "password";
+    btn.setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
+    btn.setAttribute("title", isHidden ? "Hide password" : "Show password");
+  });
+
   checkAuthAndRedirect();
 })();

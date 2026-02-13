@@ -24,7 +24,15 @@
         </div>
         <div class="agent-login-field">
           <label for="loginPassword">Password</label>
-          <input type="password" id="loginPassword" name="password" class="form-control" placeholder="••••••••" autocomplete="current-password" required>
+          <div class="agent-login-password-wrap">
+            <input type="password" id="loginPassword" name="password" class="form-control" placeholder="••••••••" autocomplete="current-password" required>
+            <button type="button" class="agent-login-toggle-pw" id="btnTogglePassword" aria-label="Show password" title="Show password">
+              <svg class="agent-login-eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </button>
+          </div>
         </div>
         <div id="loginError" class="agent-login-error" role="alert" style="display:none;"></div>
         <button type="button" class="btn btn-outline-light btn-sm mt-2" id="btnRetryLogin" style="display:none;">Retry</button>
