@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>Join session — Orient Finance</title>
+  <link rel="icon" href="/static/orient-finance-logo.png" type="image/png">
+  <link rel="stylesheet" href="/static/bootstrap.min.css">
+  <link rel="stylesheet" href="/static/laplace-legacy.css">
+  <link rel="stylesheet" href="/static/connect.css">
+</head>
+<body class="connect-page">
+  <nav class="navbar">
+    <a class="navbar-brand" href="/">
+      <img src="/static/orient-finance-logo.png" alt="Orient Finance" class="navbar-logo">
+      <span class="navbar-title">Orient Finance Co-Browse</span>
+    </a>
+    <a href="/" class="navbar-logout">← Back</a>
+  </nav>
+  <div class="connect-container">
+    <div class="connect-card">
+      <img src="/static/orient-finance-logo.png" alt="Orient Finance" class="connect-logo">
+      <h1 class="connect-title">Join session</h1>
+      <p class="connect-subtitle">Enter the session code from your advisor or use the connect link.</p>
+      <p><a href="/connect">I have a connect link</a></p>
+      <div class="connect-form-group">
+        <label for="inputSessionCode">Session code</label>
+        <input type="text" id="inputSessionCode" class="form-control" placeholder="e.g. frosty_cranky_bandicoot" autocomplete="off">
+      </div>
+      <div id="connect-error" class="connect-error" role="alert" style="display:none;"></div>
+      <button type="button" class="btn btn-dark btn-block connect-cta" id="btnConnect">Connect</button>
+    </div>
+  </div>
+  <script src="/static/config.js"></script>
+  <script src="/static/join.js"></script>
+</body>
+</html>

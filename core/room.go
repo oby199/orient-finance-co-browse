@@ -37,6 +37,17 @@ func NewRoom(callerConn *websocket.Conn) *Room {
     return &room
 }
 
+// NewRoomWithID creates a room with a specific ID (for agent-created sessions)
+func NewRoomWithID(callerConn *websocket.Conn, id string) *Room {
+    room := Room{
+        ID:         id,
+        Sessions:   make(map[string]*StreamSession),
+        CallerConn: callerConn,
+    }
+    roomMap[room.ID] = &room
+    return &room
+}
+
 func newRoomID() string {
     id := GetRandomName(0)
     for GetRoom(id) != nil {

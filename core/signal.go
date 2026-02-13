@@ -1,9 +1,12 @@
 package core
 
 import (
+    "encoding/json"
     "github.com/gorilla/websocket"
     "log"
     "net/http"
+    "net/url"
+    "strings"
     "time"
 )
 
@@ -11,6 +14,121 @@ type WSMessage struct {
     SessionID string
     Type      string
     Value     string
+}
+
+func apiHealth(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusOK)
+    json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+}
+
+func apiValidate(w http.ResponseWriter, r *http.Request) {
+    if r.Method != http.MethodGet {
+        w.WriteHeader(http.StatusMethodNotAllowed)
+        return
+    }
+    token := r.URL.Query().Get("token")
+    if token == "" {
+        w.WriteHeader(http.StatusBadRequest)
+        return
+    }
+    ip := r.RemoteAddr
+    if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+        if idx := strings.Index(xff, ","); idx >= 0 {
+            ip = strings.TrimSpace(xff[:idx])
+        } else {
+            ip = strings.TrimSpace(xff)
+        }
+    }
+    if !ValidateAndClaimTokenFromIP(token, ip) {
+        w.WriteHeader(http.StatusNotFound)
+        return
+    }
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]string{"sessionId": token, "roomId": token, "valid": "true"})
+}
+
+func apiSessionValidate(w http.ResponseWriter, r *http.Request) {
+    if r.Method != http.MethodPost {
+        w.WriteHeader(http.StatusMethodNotAllowed)
+        return
+    }
+    if err := r.ParseForm(); err != nil {
+        w.WriteHeader(http.StatusBadRequest)
+        return
+    }
+    token := strings.TrimSpace(r.FormValue("token"))
+    if token == "" {
+        token = strings.TrimSpace(r.FormValue("code"))
+    }
+    if token == "" {
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusBadRequest)
+        json.NewEncoder(w).Encode(map[string]string{"error": "token or code required"})
+        return
+    }
+    ip := r.RemoteAddr
+    if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+        if idx := strings.Index(xff, ","); idx >= 0 {
+            ip = strings.TrimSpace(xff[:idx])
+        } else {
+            ip = strings.TrimSpace(xff)
+        }
+    }
+    if !ValidateAndClaimTokenFromIP(token, ip) {
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusNotFound)
+        json.NewEncoder(w).Encode(map[string]string{"error": "Session not found or expired"})
+        return
+    }
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusOK)
+    json.NewEncoder(w).Encode(map[string]string{"sessionId": token, "roomId": token, "valid": "true"})
+}
+
+func apiSessionCreate(w http.ResponseWriter, r *http.Request) {
+    if r.Method != http.MethodPost && r.Method != http.MethodGet && r.Method != http.MethodOptions {
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusMethodNotAllowed)
+        json.NewEncoder(w).Encode(map[string]string{"error": "method not allowed"})
+        return
+    }
+    if r.Method == http.MethodOptions {
+        w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+        w.WriteHeader(http.StatusOK)
+        return
+    }
+    w.Header().Set("Content-Type", "application/json")
+    w.Header().Set("Access-Control-Allow-Origin", "*")
+    token := CreatePendingSession()
+    log.Println("session/create: roomId=", token)
+    w.WriteHeader(http.StatusOK)
+    resp := map[string]string{"token": token, "sessionId": token, "sessionCode": token, "roomId": token}
+    if err := json.NewEncoder(w).Encode(resp); err != nil {
+        log.Println("session/create encode error:", err)
+    }
+}
+
+func apiCreateSession(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
+    w.Header().Set("Access-Control-Allow-Origin", "*")
+    if r.Method != http.MethodPost && r.Method != http.MethodGet && r.Method != http.MethodOptions {
+        w.WriteHeader(http.StatusMethodNotAllowed)
+        json.NewEncoder(w).Encode(map[string]string{"error": "method not allowed"})
+        return
+    }
+    if r.Method == http.MethodOptions {
+        w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        w.WriteHeader(http.StatusOK)
+        return
+    }
+    token := CreatePendingSession()
+    log.Println("create-session: created token=", token)
+    w.WriteHeader(http.StatusOK)
+    resp := map[string]string{"token": token, "sessionId": token, "sessionCode": token}
+    if err := json.NewEncoder(w).Encode(resp); err != nil {
+        log.Println("create-session encode error:", err)
+    }
 }
 
 var upgrader = websocket.Upgrader{
@@ -37,14 +155,78 @@ func GetHttp() *http.ServeMux {
 
     server.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("files/static"))))
 
-    // SPA: serve index.html for /, /share, /join, /view, /view/CODE (ws_serve, ws_connect, static handled above)
-    server.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-        http.ServeFile(w, r, "files/index.html")
+    // Register /api/auth-check first so it reliably matches (avoids prefix routing quirks)
+    server.HandleFunc("/api/auth-check", apiAuthCheck)
+
+    // API sub-mux: /api/* never falls through to root catch-all
+    apiMux := http.NewServeMux()
+    apiMux.HandleFunc("/health", apiHealth)
+    apiMux.HandleFunc("/validate", apiValidate)
+    apiMux.HandleFunc("/create-session", apiCreateSession)
+    sessionApi := http.NewServeMux()
+    sessionApi.HandleFunc("/create", apiSessionCreate)
+    sessionApi.HandleFunc("/validate", apiSessionValidate)
+    apiMux.Handle("/session/", http.StripPrefix("/session", sessionApi))
+    apiMux.HandleFunc("/login", apiLogin)
+    apiMux.HandleFunc("/logout", apiLogout)
+    apiMux.HandleFunc("/auth-check", apiAuthCheck)
+    server.Handle("/api/", http.StripPrefix("/api", apiMux))
+
+    server.HandleFunc("/logout", apiLogout)
+
+    connectHandler := func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "files/connect.html") }
+    server.HandleFunc("/connect", connectHandler)
+    server.HandleFunc("/connect/", connectHandler)
+    server.HandleFunc("/start", connectHandler)
+    server.HandleFunc("/start/", connectHandler)
+
+    server.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "files/landing.html") })
+    server.HandleFunc("/join", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "files/join.html") })
+
+    server.HandleFunc("/room/", func(w http.ResponseWriter, r *http.Request) {
+        roomId := strings.TrimPrefix(r.URL.Path, "/room/")
+        if idx := strings.Index(roomId, "/"); idx >= 0 {
+            roomId = roomId[:idx]
+        }
+        roomId = strings.TrimSpace(roomId)
+        if roomId == "" {
+            http.Redirect(w, r, "/join", http.StatusFound)
+            return
+        }
+        http.Redirect(w, r, "/stream.html?stream=1&room="+url.QueryEscape(roomId), http.StatusFound)
     })
 
-    server.HandleFunc("/ws_serve", func(writer http.ResponseWriter, request *http.Request) {
+    server.HandleFunc("/stream.html", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "files/main.html") })
+
+    server.HandleFunc("/agent/login", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "files/agent-login.html") })
+    server.HandleFunc("/agent/login/", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "files/agent-login.html") })
+    server.HandleFunc("/agent", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "files/agent.html") })
+    server.HandleFunc("/agent/", func(w http.ResponseWriter, r *http.Request) {
+        p := strings.TrimPrefix(r.URL.Path, "/agent/")
+        if strings.HasPrefix(p, "session/") {
+            roomId := strings.TrimPrefix(p, "session/")
+            if idx := strings.Index(roomId, "/"); idx >= 0 {
+                roomId = roomId[:idx]
+            }
+            roomId = strings.TrimSpace(roomId)
+            if roomId != "" {
+                http.Redirect(w, r, "/stream.html?id="+url.QueryEscape(roomId), http.StatusFound)
+                return
+            }
+        }
+        http.Redirect(w, r, "/agent", http.StatusFound)
+    })
+
+    wsServe := func(writer http.ResponseWriter, request *http.Request) {
         conn, _ := upgrader.Upgrade(writer, request, nil)
-        room := NewRoom(conn)
+        claim := request.URL.Query().Get("claim")
+        var room *Room
+        if claim != "" && ValidateAndClaimToken(claim) && GetRoom(claim) == nil {
+            ClaimPendingSession(claim)
+            room = NewRoomWithID(conn, claim)
+        } else {
+            room = NewRoom(conn)
+        }
         if err := conn.WriteJSON(WSMessage{
             SessionID: "",
             Type:      "newRoom",
@@ -96,9 +278,11 @@ func GetHttp() *http.ServeMux {
                 }
             }
         }(room)
-    })
+    }
+    server.HandleFunc("/ws_serve", wsServe)
+    server.HandleFunc("/ws/serve", wsServe)
 
-    server.HandleFunc("/ws_connect", func(writer http.ResponseWriter, request *http.Request) {
+    wsConnect := func(writer http.ResponseWriter, request *http.Request) {
         conn, _ := upgrader.Upgrade(writer, request, nil)
 
         ids, ok := request.URL.Query()["id"]
@@ -158,7 +342,9 @@ func GetHttp() *http.ServeMux {
                 }
             }
         }(session)
-    })
+    }
+    server.HandleFunc("/ws_connect", wsConnect)
+    server.HandleFunc("/ws/connect", wsConnect)
 
     return server
 }

@@ -2,25 +2,29 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>Laplace</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover">
+    <title>Orient Finance Co-Browse</title>
+    <link rel="icon" href="/static/orient-finance-logo.png" type="image/png">
     <link rel="stylesheet" href="/static/bootstrap.min.css">
-    <link rel="stylesheet" href="/static/main.css?v=0.0.5">
+    <link rel="stylesheet" href="/static/laplace-legacy.css?v=2">
+    <script src="/static/config.js"></script>
 </head>
 <body>
 
 <nav class="navbar">
-    <a class="navbar-brand text-dark" href="/">Laplace</a>
+    <a class="navbar-brand" href="/">
+      <img src="/static/orient-finance-logo.png" alt="Orient Finance" class="navbar-logo">
+      <span class="navbar-title">Orient Finance Co-Browse</span>
+    </a>
     <span class="navbar-brand header-room" id="room-text"></span>
+    <a href="/logout" class="navbar-logout">Logout</a>
 </nav>
 
 <div class="container">
     <div class="panel" id="panel">
         <p class="help-text">
-            <b>Laplace</b> is an open-source project to enable screen sharing directly via browser.
-            Made possible using WebRTC for low latency peer-to-peer connections,
-            and websocket implemented in golang for WebRTC signaling.
-            <a href="https://github.com/adamyordan/laplace">Read more</a>
+            Share your screen securely with your advisor. No installation required — works directly in your browser.
+            <a href="https://github.com/oby199/orient-finance-co-browse">Source</a>
         </p>
 
         <div class="separator"></div>
@@ -32,6 +36,32 @@
             A RoomID will be generated, and you can share the RoomID to your peers.
         </p>
         <button type="button" class="btn btn-dark btn-block" id="btnStream">Start sharing</button>
+
+        <div class="separator"></div>
+
+        <h4>Advisor — Create session</h4>
+        <p class="help-text">
+            Create a secure session and share the link with your client.
+        </p>
+        <button type="button" class="btn btn-dark btn-block" id="btnCreateSession">Create Session</button>
+        <div id="agent-create-error" class="agent-error" role="alert" style="display:none;"></div>
+        <div id="agent-link-area" class="agent-link-area" style="display:none;">
+            <label for="agentLink" class="help-text">Share this link with your client:</label>
+            <div class="input-group mt-1">
+                <input type="text" id="agentLink" class="form-control" readonly aria-label="Session link">
+                <button type="button" class="btn btn-outline-dark" id="btnCopyLink">Copy</button>
+            </div>
+            <div class="agent-otp-row mt-2">
+                <label class="help-text">Session code (for manual entry):</label>
+                <code id="agentSessionCode" class="agent-code"></code>
+                <button type="button" class="btn btn-outline-dark btn-sm" id="btnCopyOtp">Copy code</button>
+            </div>
+            <div id="agent-qr" class="agent-qr mt-2"></div>
+            <div class="agent-session-state mt-2">
+              <span class="state-badge" id="agent-state">LINK_SENT</span>
+              <a href="#" id="agent-view-link" class="btn btn-outline-dark btn-sm ml-2" style="display:none;">View session</a>
+            </div>
+        </div>
 
         <div class="separator"></div>
 
@@ -49,6 +79,24 @@
     </div>
 </div>
 
+<!-- Client flow: simple mobile-first UI (shown when coming from /connect) -->
+<div id="stream-simple-ui" class="stream-simple-ui" style="display:none;">
+  <div class="stream-simple-card">
+    <div id="stream-step2" class="stream-step" style="display:none;">
+      <button type="button" class="btn-stream-primary" id="btnStartShareSimple">Start sharing</button>
+      <button type="button" class="btn-stream-secondary" id="btnNeedHelp">Need help?</button>
+      <div id="stream-compat-msg" class="stream-compat-msg" style="display:none;"></div>
+    </div>
+    <div id="stream-step3" class="stream-step" style="display:none;">
+      <div class="stream-live-pill" aria-live="polite">Live • Sharing</div>
+      <p class="stream-connected-msg" id="streamConnectedMsg">Waiting for advisor to join…</p>
+      <button type="button" class="btn-stream-stop" id="btnStopShare">Stop sharing</button>
+      <div id="stream-debug-info" class="stream-debug-info" style="display:none;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Config panel: only visible with ?debug=1 -->
 <div class="container container-small" id="stream-serve-page-ui">
     <div class="config-panel">
         <div class="row">
@@ -90,32 +138,51 @@
         <span>&nbsp;</span>
         <button type="button" class="btn btn-outline-dark btn-block-xs-only" id="btnStream" onclick="leaveRoom()">Cancel</button>
     </div>
-
-    <br><br>
-    <p class="help-text">
-        <b>Some notes</b><br>
-        After clicking the "Start stream" button, if your device is supported, you may be asked to choose which screen you want to share.
-        <br>
-        As of now, mobile devices (Android & iOS) are usually not supported for screen sharing.
-        <br>
-        Sharing system audio is tested to be working only with latest Google Chrome running in Windows OS.
-        <br>
-        Remember to tick the "Share audio" checkbox.
-        <br>
-        In case the streaming does not work, reload the page, the WebRTC maybe unstable.
-    </p>
 </div>
 
+<!-- Need help bottom sheet -->
+<div id="stream-help-sheet" class="stream-help-sheet" role="dialog" aria-label="Help with screen sharing" aria-hidden="true">
+  <div class="stream-help-backdrop"></div>
+  <div class="stream-help-content">
+    <h5>How to share your screen</h5>
+    <ul>
+      <li><strong>Desktop:</strong> Chrome, Edge, Firefox, or Safari — click "Start sharing", choose screen or tab.</li>
+      <li><strong>Android:</strong> Chrome — screen sharing works in some versions.</li>
+      <li><strong>iPhone/iPad:</strong> Screen sharing is not supported. Use Safari on a Mac or Windows PC, or Chrome on Android/desktop.</li>
+    </ul>
+    <p>You need HTTPS (or localhost). If it doesn't work, try refreshing the page.</p>
+    <button type="button" class="btn-stream-secondary" id="btnCloseHelp">Close</button>
+  </div>
+</div>
+
+<div id="client-toast" class="client-toast" role="status" aria-live="polite"></div>
+
 <div class="container-fluid" id="video-container">
-    <div id="video-wrapper">
+    <div id="video-wrapper" class="video-wrapper-agent">
         <video id="mainVideo" autoplay playsinline controls>
         </video>
+        <canvas id="agent-overlay" class="agent-overlay-canvas" aria-hidden="true"></canvas>
+        <div id="agent-tools" class="agent-tools">
+          <button type="button" class="btn btn-outline-dark btn-sm" id="btnRequestClick" title="Send click request to client">Request click</button>
+          <button type="button" class="btn btn-outline-dark btn-sm" id="btnHighlight" title="Draw highlight box (click-drag)">Highlight</button>
+          <span class="agent-tool-hint">Hold L for laser · Click-drag for highlight</span>
+        </div>
     </div>
 </div>
 
 <br><br>
 
 <div class="container container-small" id="stream-page-ui">
+    <div id="onboarding-checklist" class="onboarding-checklist">
+      <h6>Onboarding steps</h6>
+      <ul>
+        <li data-step="1"><input type="checkbox" id="step1"> Open registration</li>
+        <li data-step="2"><input type="checkbox" id="step2"> Fill personal details</li>
+        <li data-step="3"><input type="checkbox" id="step3"> Upload ID</li>
+        <li data-step="4"><input type="checkbox" id="step4"> Complete KYC</li>
+      </ul>
+      <p class="assistant-hint">Need help? Ask your advisor</p>
+    </div>
     <div class="row">
         <div class="col-md-9">
             <h4>How to Join this Room</h4>
@@ -156,12 +223,12 @@
 <div class="container">
     <hr>
     <div class="text-center small" id="footer">
-        <span>Laplace Project by Adam Jordan.</span>
-        <a href="https://github.com/adamyordan/laplace">Source Code</a>
+        <span>© Orient Finance Broker — Co-Browse</span>
+        <a href="#">Security &amp; Privacy</a>
     </div>
 </div>
 
 <script src="/static/qrcode.min.js"></script>
-<script src="/static/main.js?v=0.0.5"></script>
+<script src="/static/laplace-legacy.js?v=1"></script>
 </body>
 </html>

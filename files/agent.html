@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>Advisor — Orient Finance Co-Browse</title>
+  <link rel="icon" href="/static/orient-finance-logo.png" type="image/png">
+  <link rel="stylesheet" href="/static/bootstrap.min.css">
+  <link rel="stylesheet" href="/static/laplace-legacy.css">
+</head>
+<body>
+  <nav class="navbar">
+    <a class="navbar-brand" href="/agent">
+      <img src="/static/orient-finance-logo.png" alt="Orient Finance" class="navbar-logo">
+      <span class="navbar-title">Orient Finance Co-Browse — Advisor</span>
+    </a>
+    <a href="/logout" class="navbar-logout">Logout</a>
+  </nav>
+  <div class="container">
+    <div class="panel">
+      <h4>Create session</h4>
+      <p class="help-text">Create a secure session and share the link with your client.</p>
+      <button type="button" class="btn btn-dark btn-block" id="btnCreateSession">Create Session</button>
+      <div id="agent-create-error" class="agent-error" role="alert" style="display:none;"></div>
+      <div id="agent-link-area" class="agent-link-area" style="display:none;">
+        <label for="agentLink" class="help-text">Share this link with your client:</label>
+        <div class="input-group mt-1">
+          <input type="text" id="agentLink" class="form-control" readonly>
+          <button type="button" class="btn btn-outline-dark" id="btnCopyLink">Copy</button>
+        </div>
+        <div class="agent-otp-row mt-2">
+          <label class="help-text">Manual code:</label>
+          <code id="agentSessionCode" class="agent-code"></code>
+          <button type="button" class="btn btn-outline-dark btn-sm" id="btnCopyOtp">Copy code</button>
+        </div>
+        <div id="agent-qr" class="agent-qr mt-2"></div>
+        <a href="#" id="agent-open-session" class="btn btn-dark btn-block mt-2" style="display:none;">Open Agent Session</a>
+      </div>
+    </div>
+  </div>
+  <div class="container"><hr><div class="text-center small"><a href="/">Home</a> · © Orient Finance Broker</div></div>
+  <script src="/static/config.js"></script>
+  <script src="/static/qrcode.min.js"></script>
+  <script src="/static/agent.js"></script>
+</body>
+</html>
