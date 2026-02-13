@@ -11,5 +11,7 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /root/
 COPY --from=builder /build/laplace .
 COPY files files
-EXPOSE 443
-CMD ["./laplace"]
+EXPOSE 8080
+ENV LAPLACE_ADDR=0.0.0.0:8080
+ENV LAPLACE_TLS=false
+CMD ["./laplace", "-tls=false", "-addr=0.0.0.0:8080"]
