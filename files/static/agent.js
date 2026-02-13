@@ -17,6 +17,11 @@
     console.error("[Create Session]", msg, err);
     if (errEl) { errEl.textContent = msg; errEl.style.display = "block"; }
     if (btn) { btn.disabled = false; btn.textContent = "Create Session"; }
+    const retryBtn = document.getElementById("btnRetryCreate");
+    if (retryBtn) {
+      retryBtn.style.display = "block";
+      retryBtn.onclick = () => { if (errEl) errEl.style.display = "none"; retryBtn.style.display = "none"; createSession(); };
+    }
   }
 
   async function createSession() {
@@ -43,14 +48,12 @@
         return;
       }
       const roomId = data?.roomId || data?.token || data?.sessionId;
-      const sessionCode = data?.sessionCode || roomId;
+      const sessionCode = data?.code || data?.sessionCode || roomId;
+      const shareUrl = data?.connectUrl || (getBaseUrl().replace(/\/$/, "") + "/connect?token=" + encodeURIComponent(roomId));
       if (!roomId) {
         handleError("No session token returned.");
         return;
       }
-      const base = (window.OrientFinanceConfig?.CUSTOMER_APP_BASE_URL || window.OrientFinanceConfig?.BASE_URL || "").trim() || getBaseUrl();
-      const connectPath = (window.OrientFinanceConfig?.CONNECT_PATH || "/connect").replace(/^\/+/, "");
-      const shareUrl = base.replace(/\/$/, "") + "/" + connectPath + "?token=" + encodeURIComponent(roomId);
       input.value = shareUrl;
       if (codeEl) codeEl.textContent = sessionCode;
       if (qrEl) {
@@ -63,6 +66,7 @@
         openLink.style.display = "block";
       }
       area.style.display = "block";
+      document.getElementById("btnRetryCreate")?.setAttribute("style", "display:none");
     } catch (err) {
       handleError("Failed to create session. " + (err?.message || ""), err);
     } finally {

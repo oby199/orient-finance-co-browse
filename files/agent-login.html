@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- AGENT-LOGIN-PAGE: this is the login form only; no dashboard, no logout -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -26,7 +27,8 @@
           <input type="password" id="loginPassword" name="password" class="form-control" placeholder="••••••••" autocomplete="current-password" required>
         </div>
         <div id="loginError" class="agent-login-error" role="alert" style="display:none;"></div>
-        <button type="submit" class="btn-agent-login" id="btnLogin">Login</button>
+        <button type="button" class="btn btn-outline-light btn-sm mt-2" id="btnRetryLogin" style="display:none;">Retry</button>
+        <button type="submit" class="btn-agent-login" id="btnLogin">Sign in</button>
       </form>
     </div>
   </div>

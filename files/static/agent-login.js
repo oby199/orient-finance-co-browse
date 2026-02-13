@@ -6,14 +6,26 @@
   const errEl = document.getElementById("loginError");
 
   async function checkAuthAndRedirect() {
+    const pathname = window.location.pathname || "/";
+    const targetAgent = "/agent";
+    if (pathname === targetAgent || pathname.startsWith(targetAgent + "/")) return false;
     try {
       const r = await fetch("/api/auth-check", { credentials: "include" });
       const d = await r.json().catch(() => ({}));
-      if (r.ok && (d?.authenticated === true || d?.authenticated === "true")) {
-        window.location.replace("/agent");
+      console.log("[agent-login] auth-check (once):", r.status, JSON.stringify(d));
+      if (r.status === 404) {
+        showError("Server misconfigured: /api/auth-check returned 404. Rebuild and restart the server.");
+        return false;
+      }
+      if (r.ok && (d?.authed === true || d?.authed === "true")) {
+        console.log("[agent-login] redirect from=" + pathname + " to=" + targetAgent + " authed=true");
+        window.location.replace(targetAgent);
         return true;
       }
-    } catch (_) {}
+    } catch (e) {
+      showError("Cannot reach server. Is it running at " + window.location.origin + "?");
+      return false;
+    }
     return false;
   }
 
@@ -22,6 +34,11 @@
       errEl.textContent = msg;
       errEl.style.display = "block";
     }
+    const retryBtn = document.getElementById("btnRetryLogin");
+    if (retryBtn) {
+      retryBtn.style.display = "inline-block";
+      retryBtn.onclick = () => { hideError(); retryBtn.style.display = "none"; };
+    }
   }
 
   function hideError() {
@@ -29,6 +46,7 @@
       errEl.textContent = "";
       errEl.style.display = "none";
     }
+    document.getElementById("btnRetryLogin")?.setAttribute("style", "display:none");
   }
 
   form.addEventListener("submit", async (e) => {
@@ -65,7 +83,7 @@
         return;
       }
 
-      window.location.href = data?.redirect || "/agent";
+      window.location.replace(data?.redirect || "/agent");
     } catch (err) {
       showError("Connection failed. Please try again.");
     } finally {

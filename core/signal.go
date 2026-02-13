@@ -83,7 +83,7 @@ func apiSessionValidate(w http.ResponseWriter, r *http.Request) {
     }
     w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(http.StatusOK)
-    json.NewEncoder(w).Encode(map[string]string{"sessionId": token, "roomId": token, "valid": "true"})
+    json.NewEncoder(w).Encode(map[string]string{"roomId": token, "sessionId": token, "valid": "true"})
 }
 
 func apiSessionCreate(w http.ResponseWriter, r *http.Request) {
@@ -102,8 +102,24 @@ func apiSessionCreate(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Access-Control-Allow-Origin", "*")
     token := CreatePendingSession()
     log.Println("session/create: roomId=", token)
+    scheme := "https"
+    if r.TLS == nil {
+        scheme = "http"
+    }
+    host := r.Host
+    if host == "" {
+        host = "localhost"
+    }
+    connectUrl := scheme + "://" + host + "/connect?token=" + url.QueryEscape(token)
     w.WriteHeader(http.StatusOK)
-    resp := map[string]string{"token": token, "sessionId": token, "sessionCode": token, "roomId": token}
+    resp := map[string]interface{}{
+        "token":      token,
+        "roomId":     token,
+        "sessionId":  token,
+        "sessionCode": token,
+        "code":       token,
+        "connectUrl": connectUrl,
+    }
     if err := json.NewEncoder(w).Encode(resp); err != nil {
         log.Println("session/create encode error:", err)
     }
@@ -156,7 +172,7 @@ func GetHttp() *http.ServeMux {
     server.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("files/static"))))
 
     // Register /api/auth-check first so it reliably matches (avoids prefix routing quirks)
-    server.HandleFunc("/api/auth-check", apiAuthCheck)
+    server.HandleFunc("/api/auth-check", ApiAuthCheck)
 
     // API sub-mux: /api/* never falls through to root catch-all
     apiMux := http.NewServeMux()
@@ -169,7 +185,7 @@ func GetHttp() *http.ServeMux {
     apiMux.Handle("/session/", http.StripPrefix("/session", sessionApi))
     apiMux.HandleFunc("/login", apiLogin)
     apiMux.HandleFunc("/logout", apiLogout)
-    apiMux.HandleFunc("/auth-check", apiAuthCheck)
+    apiMux.HandleFunc("/auth-check", ApiAuthCheck)
     server.Handle("/api/", http.StripPrefix("/api", apiMux))
 
     server.HandleFunc("/logout", apiLogout)
@@ -198,13 +214,26 @@ func GetHttp() *http.ServeMux {
 
     server.HandleFunc("/stream.html", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "files/main.html") })
 
-    server.HandleFunc("/agent/login", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "files/agent-login.html") })
-    server.HandleFunc("/agent/login/", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "files/agent-login.html") })
-    server.HandleFunc("/agent", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "files/agent.html") })
-    server.HandleFunc("/agent/", func(w http.ResponseWriter, r *http.Request) {
-        p := strings.TrimPrefix(r.URL.Path, "/agent/")
-        if strings.HasPrefix(p, "session/") {
-            roomId := strings.TrimPrefix(p, "session/")
+    // /agent/login: serve ONLY login page (fallback if middleware bypassed; middleware also handles)
+    server.HandleFunc("/agent/login", func(w http.ResponseWriter, r *http.Request) {
+        w.Header().Set("Cache-Control", "no-store, no-cache")
+        http.ServeFile(w, r, "files/agent-login.html")
+    })
+    server.HandleFunc("/agent/login/", func(w http.ResponseWriter, r *http.Request) {
+        http.Redirect(w, r, "/agent/login", http.StatusMovedPermanently)
+        return
+    })
+
+    // Agent routes: /agent, /agent/session/* (NOT /agent/login - handled above)
+    agentRoutes := func(w http.ResponseWriter, r *http.Request) {
+        path := r.URL.Path
+        if path == "/agent/login" || strings.HasPrefix(path, "/agent/login/") {
+            http.Redirect(w, r, "/agent/login", http.StatusFound)
+            return
+        }
+        w.Header().Set("Cache-Control", "no-store, no-cache")
+        if strings.HasPrefix(path, "/agent/session/") {
+            roomId := strings.TrimPrefix(path, "/agent/session/")
             if idx := strings.Index(roomId, "/"); idx >= 0 {
                 roomId = roomId[:idx]
             }
@@ -214,8 +243,14 @@ func GetHttp() *http.ServeMux {
                 return
             }
         }
+        if path == "/agent" || path == "/agent/" || strings.HasPrefix(path, "/agent/") {
+            http.ServeFile(w, r, "files/agent.html")
+            return
+        }
         http.Redirect(w, r, "/agent", http.StatusFound)
-    })
+    }
+    server.HandleFunc("/agent", agentRoutes)
+    server.HandleFunc("/agent/", agentRoutes)
 
     wsServe := func(writer http.ResponseWriter, request *http.Request) {
         conn, _ := upgrader.Upgrade(writer, request, nil)
@@ -279,7 +314,6 @@ func GetHttp() *http.ServeMux {
             }
         }(room)
     }
-    server.HandleFunc("/ws_serve", wsServe)
     server.HandleFunc("/ws/serve", wsServe)
 
     wsConnect := func(writer http.ResponseWriter, request *http.Request) {
@@ -343,7 +377,6 @@ func GetHttp() *http.ServeMux {
             }
         }(session)
     }
-    server.HandleFunc("/ws_connect", wsConnect)
     server.HandleFunc("/ws/connect", wsConnect)
 
     return server

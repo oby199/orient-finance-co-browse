@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"flag"
 	"laplace/core"
 	"log"
@@ -10,14 +11,34 @@ import (
 	"time"
 )
 
+//go:embed files/agent-login.html
+var agentLoginHTML []byte
+
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 		if path == "" {
 			path = "/"
 		}
+		authed := core.IsAuthenticated(r)
 
-		// Public routes
+		// 1) DETERMINISTIC: /agent/login → ONLY agent-login.html (embedded in binary; no wrong template)
+		if path == "/agent/login" || strings.HasPrefix(path, "/agent/login/") {
+			log.Printf("[route] /agent/login -> agent-login.html (embedded)")
+			w.Header().Set("Cache-Control", "no-store, no-cache")
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusOK)
+			w.Write(agentLoginHTML)
+			return
+		}
+
+		// 2) /api/auth-check - never 404, handled before mux
+		if path == "/api/auth-check" {
+			core.ApiAuthCheck(w, r)
+			return
+		}
+
+		// Public routes (no auth)
 		if path == "/" ||
 			path == "/join" ||
 			strings.HasPrefix(path, "/connect") ||
@@ -25,10 +46,8 @@ func authMiddleware(next http.Handler) http.Handler {
 			strings.HasPrefix(path, "/room/") ||
 			strings.HasPrefix(path, "/static/") ||
 			strings.HasPrefix(path, "/api/") ||
-			path == "/ws_serve" || path == "/ws_connect" ||
 			path == "/ws/serve" || path == "/ws/connect" ||
-			path == "/logout" ||
-			strings.HasPrefix(path, "/agent/login") {
+			path == "/logout" {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -40,7 +59,8 @@ func authMiddleware(next http.Handler) http.Handler {
 				next.ServeHTTP(w, r)
 				return
 			}
-			if !core.IsAuthenticated(r) {
+			if !authed {
+				log.Printf("[redirect] from=%s to=/agent/login authed=false pathname=%s", path, path)
 				http.Redirect(w, r, "/agent/login", http.StatusFound)
 				return
 			}
@@ -48,9 +68,10 @@ func authMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Protect all /agent/* except /agent/login
+		// Protect /agent, /agent/, /agent/session/* (NOT /agent/login - handled above)
 		if strings.HasPrefix(path, "/agent") {
-			if !core.IsAuthenticated(r) {
+			if !authed {
+				log.Printf("[redirect] from=%s to=/agent/login authed=false pathname=%s", path, path)
 				http.Redirect(w, r, "/agent/login", http.StatusFound)
 				return
 			}

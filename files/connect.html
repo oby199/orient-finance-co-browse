@@ -11,6 +11,13 @@
   <script src="/static/config.js"></script>
 </head>
 <body class="connect-page">
+  <nav class="navbar">
+    <a class="navbar-brand" href="/">
+      <img src="/static/orient-finance-logo.png" alt="Orient Finance" class="navbar-logo">
+      <span class="navbar-title">Orient Finance Co-Browse</span>
+    </a>
+    <a href="/" class="navbar-logout">← Home</a>
+  </nav>
   <div class="connect-container">
     <div class="connect-card">
       <img src="/static/orient-finance-logo.png" alt="Orient Finance" class="connect-logo">
@@ -25,6 +32,7 @@
 
       <div id="connect-error" class="connect-error" role="alert" aria-live="polite"></div>
       <div id="connect-status" class="connect-status" role="status" aria-live="polite"></div>
+      <button type="button" class="btn btn-outline-dark btn-sm mt-2" id="btnRetry" style="display:none;">Retry</button>
 
       <button type="button" class="btn btn-dark btn-block connect-cta" id="btnConnect">
         Connect

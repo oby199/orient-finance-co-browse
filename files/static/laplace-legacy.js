@@ -40,7 +40,42 @@ const preset = {
   highQualityLanOnly: { displayMediaOption: displayMediaOptions.noConstraint, rtpPeerConnectionOption: rtpPeerConnectionOptions.noStun },
 };
 
-const LaplaceVar = { ui: {} };
+const LaplaceVar = { ui: {}, lastApiError: "", pingIntervals: {}, _overlayInterval: null };
+
+function updateDebugPanel(route, auth, err) {
+  if (!isDebugMode()) return;
+  const el = document.getElementById("debug-panel");
+  if (!el) return;
+  el.style.display = "block";
+  const routeEl = document.getElementById("debug-route");
+  const authEl = document.getElementById("debug-auth");
+  const errEl = document.getElementById("debug-last-error");
+  if (routeEl) routeEl.textContent = route || window.location.pathname + window.location.search;
+  if (authEl) authEl.textContent = auth != null ? String(auth) : "-";
+  if (errEl) errEl.textContent = err || LaplaceVar.lastApiError || "-";
+}
+
+function showErrorPanel(msg, onRetry) {
+  LaplaceVar.lastApiError = msg || "";
+  updateDebugPanel(null, null, msg);
+  const panel = document.getElementById("error-panel");
+  const msgEl = document.getElementById("error-panel-message");
+  const retryBtn = document.getElementById("error-panel-retry");
+  if (!panel || !msgEl) return;
+  msgEl.textContent = msg || "Something went wrong. Please try again.";
+  panel.style.display = "block";
+  if (retryBtn) {
+    retryBtn.onclick = () => {
+      panel.style.display = "none";
+      if (onRetry) onRetry();
+    };
+  }
+}
+
+function hideErrorPanel() {
+  const panel = document.getElementById("error-panel");
+  if (panel) panel.style.display = "none";
+}
 
 function showClientToast(msg) {
   const el = document.getElementById("client-toast");
@@ -67,7 +102,7 @@ function getStreamUrl() {
 }
 
 function getJoinUrl(roomID) {
-  return `${getBaseUrl()}/?id=${roomID}`;
+  return `${getBaseUrl()}/connect?token=${encodeURIComponent(roomID)}`;
 }
 
 function isClientFlow() {
@@ -150,17 +185,19 @@ function initUI() {
     btn.disabled = true;
     btn.textContent = "Creating…";
 
-    const apiUrl = (window.location.origin || getBaseUrl()) + "/api/create-session";
+    const apiUrl = (window.location.origin || getBaseUrl()) + "/api/session/create";
 
-    const handleError = (msg, err) => {
+    const handleError = (msg, err, showRetry) => {
       console.error("[Create Session]", msg, err);
-      if (err?.stack) console.error(err.stack);
+      LaplaceVar.lastApiError = msg || "";
+      updateDebugPanel(null, null, msg);
       if (errEl) {
         errEl.textContent = msg;
         errEl.style.display = "block";
       }
       btn.disabled = false;
       btn.textContent = "Create Session";
+      if (showRetry) showErrorPanel(msg || "Failed to create session. Please try again.", () => document.getElementById("btnCreateSession")?.click());
     };
 
     try {
@@ -169,16 +206,16 @@ function initUI() {
         res = await fetch(apiUrl, { method: "GET" }).catch((e) => null);
       }
       if (!res) {
-        handleError("Cannot reach server. Is it running? Check console for details.", new Error("fetch failed"));
+        handleError("Cannot reach server. Is it running? Check console for details.", new Error("fetch failed"), true);
         return;
       }
       const text = await res.text();
       if (!res.ok) {
-        handleError("Server error (" + res.status + "). " + (text || res.statusText), new Error(text));
+        handleError("Server error (" + res.status + "). " + (text || res.statusText), new Error(text), true);
         return;
       }
       if (text.trimStart().startsWith("<")) {
-        handleError("Server returned HTML instead of JSON. The API route may not be registered correctly. Check that the Go server is running.", new Error(text.slice(0, 100)));
+        handleError("Server returned HTML instead of JSON. The API route may not be registered correctly. Check that the Go server is running.", new Error(text.slice(0, 100)), true);
         return;
       }
       let data;
@@ -188,29 +225,28 @@ function initUI() {
         handleError("Invalid response from server. " + (e?.message || ""), e);
         return;
       }
-      const token = data?.token || data?.sessionId;
+      const token = data?.token || data?.roomId || data?.sessionId;
+      const shareUrl = data?.connectUrl || ((window.location.origin || getBaseUrl()) + "/connect?token=" + encodeURIComponent(token));
+      const code = data?.code || data?.sessionCode || token;
       if (!token) {
-        handleError("No session token returned. Check server.", new Error(JSON.stringify(data)));
+        handleError("No session token returned. Check server.", new Error(JSON.stringify(data)), true);
         return;
       }
-      const base = (window.OrientFinanceConfig?.CUSTOMER_APP_BASE_URL || window.OrientFinanceConfig?.BASE_URL || "").trim() || (window.location.origin || getBaseUrl());
-      const connectPath = (window.OrientFinanceConfig?.CONNECT_PATH || "/connect").replace(/^\/+/, "");
-      const url = base.replace(/\/$/, "") + "/" + connectPath + "?token=" + encodeURIComponent(token);
-      input.value = url;
-      if (codeEl) codeEl.textContent = token;
+      input.value = shareUrl;
+      if (codeEl) codeEl.textContent = code;
       if (qrEl) {
         qrEl.innerHTML = "";
-        if (typeof QRCode !== "undefined") new QRCode(qrEl, { text: url, width: 128, height: 128 });
+        if (typeof QRCode !== "undefined") new QRCode(qrEl, { text: shareUrl, width: 128, height: 128 });
       }
       const viewLink = document.getElementById("agent-view-link");
       if (viewLink) {
-        viewLink.href = getBaseUrl() + "/session/" + encodeURIComponent(token);
+        viewLink.href = "/agent/session/" + encodeURIComponent(token);
         viewLink.target = "_blank";
         viewLink.style.display = "inline-block";
       }
       area.style.display = "block";
     } catch (err) {
-      handleError("Failed to create session. " + (err?.message || "Unknown error."), err);
+      handleError("Failed to create session. " + (err?.message || "Unknown error."), err, true);
       return;
     }
     btn.disabled = false;
@@ -303,6 +339,10 @@ async function newSessionStream(sessionID, pcOption) {
   };
   LaplaceVar.pcs[sessionID].oniceconnectionstatechange = () => {
     if (LaplaceVar.pcs[sessionID].iceConnectionState === "disconnected") {
+      if (LaplaceVar.pingIntervals && LaplaceVar.pingIntervals[sessionID]) {
+        clearInterval(LaplaceVar.pingIntervals[sessionID]);
+        delete LaplaceVar.pingIntervals[sessionID];
+      }
       LaplaceVar.pcs[sessionID].close();
       delete LaplaceVar.pcs[sessionID];
       delete LaplaceVar.dataChannels[sessionID];
@@ -469,8 +509,8 @@ async function startStream(displayMediaOption, pcOption) {
   LaplaceVar.ui.video.muted = true;
 
   const wsPath = LaplaceVar.claimToken
-    ? "/ws_serve?claim=" + encodeURIComponent(LaplaceVar.claimToken)
-    : "/ws_serve";
+    ? "/ws/serve?claim=" + encodeURIComponent(LaplaceVar.claimToken)
+    : "/ws/serve";
   LaplaceVar.socket = new WebSocket(getWebsocketUrl() + wsPath);
   LaplaceVar.socket.onerror = () => {
     showClientToast("Connection error. Please try again.");
@@ -561,7 +601,7 @@ async function doJoin(roomID) {
   LaplaceVar.mediaStream = new MediaStream();
   LaplaceVar.ui.video.srcObject = LaplaceVar.mediaStream;
 
-  LaplaceVar.socket = new WebSocket(getWebsocketUrl() + "/ws_connect?id=" + LaplaceVar.roomID);
+  LaplaceVar.socket = new WebSocket(getWebsocketUrl() + "/ws/connect?id=" + LaplaceVar.roomID);
   LaplaceVar.socket.onerror = () => {
     alert("WebSocket error");
     leaveRoom();
@@ -699,7 +739,8 @@ function initAgentOverlay() {
     drawOverlay(mx, my);
   });
 
-  setInterval(() => {
+  if (LaplaceVar._overlayInterval) clearInterval(LaplaceVar._overlayInterval);
+  LaplaceVar._overlayInterval = setInterval(() => {
     if (!ctx || canvas.width === 0) return;
     if (highlights.length > 0) drawOverlay(lastCursor.x, lastCursor.y);
   }, 200);
@@ -723,26 +764,77 @@ function initAgentOverlay() {
   }
 }
 
-(async function ensureAuth() {
+(function ensureAuth() {
+  const pathname = window.location.pathname || "/";
+  const targetLogin = "/agent/login";
+
+  // This script runs ONLY on /stream.html (main.html). /agent/login is served by middleware - never loads this.
+  if (pathname === targetLogin || pathname.startsWith(targetLogin + "/")) {
+    return;
+  }
+
+  // Client flow: stream=1&room - no auth needed, hide Logout
   const u = new URL(window.location.href);
   const stream = u.searchParams.get("stream");
   const room = u.searchParams.get("room");
   if (stream === "1" && room) {
+    const logoutEl = document.getElementById("navbar-logout");
+    if (logoutEl) logoutEl.style.display = "none";
+    updateDebugPanel(window.location.pathname + window.location.search, false, null);
     initUI();
     routeByUrl();
     return;
   }
-  try {
-    const r = await fetch("/api/auth-check", { credentials: "include" });
-    const d = await r.json().catch(() => ({}));
-    if (!r.ok || (d?.authenticated !== true && d?.authenticated !== "true")) {
-      window.location.replace("/agent/login");
+
+  let authCheckFired = false;
+  (async function runAuthCheckOnce() {
+    if (authCheckFired) return;
+    authCheckFired = true;
+    try {
+      const r = await fetch("/api/auth-check", { credentials: "include" });
+      const d = await r.json().catch(() => ({}));
+      console.log("[ensureAuth] auth-check response (once):", r.status, JSON.stringify(d));
+      if (r.status === 404) {
+        LaplaceVar.lastApiError = "API /api/auth-check not found (404). Rebuild and restart the server.";
+        updateDebugPanel(pathname, false, LaplaceVar.lastApiError);
+        showErrorPanel(LaplaceVar.lastApiError, () => window.location.reload());
+        return;
+      }
+      const isAuthed = r.ok && (d?.authed === true || d?.authed === "true");
+      if (!isAuthed) {
+        console.log("[ensureAuth] redirect from=" + pathname + " to=" + targetLogin + " (401 or not authed)");
+        window.location.replace(targetLogin);
+        return;
+      }
+    } catch (e) {
+      LaplaceVar.lastApiError = "Auth check failed: " + (e?.message || "network error");
+      updateDebugPanel(pathname, false, LaplaceVar.lastApiError);
+      showErrorPanel(LaplaceVar.lastApiError + " Check server is running.", () => window.location.reload());
       return;
     }
-  } catch (_) {
-    window.location.replace("/agent/login");
-    return;
+    const logoutEl = document.getElementById("navbar-logout");
+    if (logoutEl) logoutEl.style.display = "";
+    updateDebugPanel(window.location.pathname + window.location.search, true, null);
+    initUI();
+    routeByUrl();
+  })();
+})();
+
+(function cleanupOnUnload() {
+  function clearAllIntervals() {
+    if (LaplaceVar._overlayInterval) {
+      clearInterval(LaplaceVar._overlayInterval);
+      LaplaceVar._overlayInterval = null;
+    }
+    if (LaplaceVar.pingIntervals) {
+      Object.values(LaplaceVar.pingIntervals).forEach(clearInterval);
+      LaplaceVar.pingIntervals = {};
+    }
+    if (LaplaceVar.pingInterval) {
+      clearInterval(LaplaceVar.pingInterval);
+      LaplaceVar.pingInterval = null;
+    }
   }
-  initUI();
-  routeByUrl();
+  window.addEventListener("pagehide", clearAllIntervals);
+  window.addEventListener("beforeunload", clearAllIntervals);
 })();

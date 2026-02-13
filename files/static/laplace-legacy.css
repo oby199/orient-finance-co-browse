@@ -78,7 +78,35 @@ body {
   margin-left: auto;
   font-size: 0.9rem;
   color: var(--gray-600) !important;
-  text-decoration: none !important;
+}
+
+/* Error panel + Retry */
+.error-panel {
+  position: fixed;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  background: var(--white);
+  border: 1px solid #feb2b2;
+  border-radius: var(--radius);
+  padding: 1rem 1.5rem;
+  box-shadow: var(--shadow-lg);
+}
+.error-panel-content p { margin: 0 0 0.5rem 0; color: var(--gray-700); }
+.error-panel-content .btn { min-width: 80px; }
+
+/* Debug panel (dev only) */
+.debug-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 9998;
+  background: rgba(0,0,0,0.85);
+  color: #aaa;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.75rem;
 }
 
 .navbar-logout:hover {

@@ -17,7 +17,7 @@
       <span class="navbar-title">Orient Finance Co-Browse</span>
     </a>
     <span class="navbar-brand header-room" id="room-text"></span>
-    <a href="/logout" class="navbar-logout">Logout</a>
+    <a href="/logout" class="navbar-logout" id="navbar-logout" style="display:none;">Logout</a>
 </nav>
 
 <div class="container">
@@ -157,6 +157,19 @@
 
 <div id="client-toast" class="client-toast" role="status" aria-live="polite"></div>
 
+<!-- Error UI: friendly message + Retry (shown on API failure) -->
+<div id="error-panel" class="error-panel" style="display:none;" role="alert">
+  <div class="error-panel-content">
+    <p id="error-panel-message">Something went wrong.</p>
+    <button type="button" class="btn btn-dark" id="error-panel-retry">Retry</button>
+  </div>
+</div>
+
+<!-- Debug panel: dev only (?debug=1) -->
+<div id="debug-panel" class="debug-panel" style="display:none;">
+  <small><strong>Debug</strong> route: <span id="debug-route">-</span> | auth: <span id="debug-auth">-</span> | last error: <span id="debug-last-error">-</span></small>
+</div>
+
 <div class="container-fluid" id="video-container">
     <div id="video-wrapper" class="video-wrapper-agent">
         <video id="mainVideo" autoplay playsinline controls>
@@ -229,6 +242,6 @@
 </div>
 
 <script src="/static/qrcode.min.js"></script>
-<script src="/static/laplace-legacy.js?v=1"></script>
+<script src="/static/laplace-legacy.js?v=2"></script>
 </body>
 </html>

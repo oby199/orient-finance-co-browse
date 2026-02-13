@@ -159,34 +159,22 @@ func apiLogout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/agent/login", http.StatusFound)
 }
 
-func apiAuthCheck(w http.ResponseWriter, r *http.Request) {
+// ApiAuthCheck handles GET /api/auth-check; 200 + {authed:true} if logged in, 401 + {authed:false} if not. Never 404.
+func ApiAuthCheck(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	log.Printf("[auth-check] %s %s", r.Method, r.URL.Path)
+	log.Printf("[auth-check] GET %s", r.URL.Path)
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 	sid := getSessionFromRequest(r)
-	if email, ok := getSessionInfo(sid); ok {
-		sidShort := sid
-		if len(sid) > 8 {
-			sidShort = sid[:8] + "..."
-		}
-		log.Printf("[auth-check] authenticated session=%s email=%s", sidShort, email)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"ok":            true,
-			"authenticated": true,
-			"agent": map[string]string{
-				"id":    sid,
-				"email": email,
-			},
-		})
+	if _, ok := getSessionInfo(sid); ok {
+		log.Printf("[auth-check] authed=true -> 200")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{"authed": true})
 		return
 	}
-	log.Printf("[auth-check] not authenticated")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"ok":            true,
-		"authenticated": false,
-	})
+	log.Printf("[auth-check] authed=false -> 401")
+	w.WriteHeader(http.StatusUnauthorized)
+	json.NewEncoder(w).Encode(map[string]interface{}{"authed": false})
 }

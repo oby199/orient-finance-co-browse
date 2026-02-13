@@ -51,6 +51,11 @@
       errEl.style.display = "block";
     }
     if (statusEl) statusEl.textContent = "";
+    const retryBtn = document.getElementById("btnRetry");
+    if (retryBtn) {
+      retryBtn.style.display = "block";
+      retryBtn.onclick = () => { hideError(); retryBtn.style.display = "none"; handleConnect(); };
+    }
   }
 
   function hideError() {
@@ -59,6 +64,8 @@
       errEl.classList.remove("visible");
       errEl.style.display = "none";
     }
+    const retryBtn = document.getElementById("btnRetry");
+    if (retryBtn) retryBtn.style.display = "none";
   }
 
   function setStatus(msg) {

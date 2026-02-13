@@ -4,44 +4,60 @@ Secure screen sharing for **Orient Finance Broker** — advisors create sessions
 
 ## Quick Start
 
+**Local HTTP (easiest):**
+
 ```bash
-cd /Users/ozgur/Downloads/laplace-master
-go build -o orient-co-browse main.go
-./orient-co-browse -addr=0.0.0.0:8443
+./run-local.sh
 ```
 
-Open **https://localhost:8443**. For self-signed certs, type `thisisunsafe` in Chrome when prompted.
+Then open **http://127.0.0.1:8080** in your browser.
+
+**Or manually with TLS:**
+
+```bash
+go build -o laplace .
+./laplace -tls=false -addr=127.0.0.1:8080   # HTTP
+# or
+./laplace -addr=0.0.0.0:8443                 # HTTPS (default), needs certs
+```
+
+Then open **http://127.0.0.1:8080** (HTTP) or **https://localhost:8443** (HTTPS). For self-signed certs, type `thisisunsafe` in Chrome when prompted.
+
+> **Important:** The app must be reached through the server URL (e.g. http://127.0.0.1:8080). Opening HTML files directly (`file://`) will not work—links and buttons depend on the server.
 
 ## Flow
 
 ### Agent (Advisor)
 
-1. Go to **https://localhost:8443/advisor** (or `/` and use "Advisor — Create session").
-2. Click **Create Session**.
-3. Share the **joinUrl** or **session code** with the client (WhatsApp/SMS).
+1. Go to **http://127.0.0.1:8080** → click **Advisor login** → sign in (default: advisor@orientfinance.com / orient2024).
+2. On `/agent`, click **Create Session**.
+3. Share the **connect link** or **session code** with the client (WhatsApp/SMS).
 
 ### Client (mobile-first)
 
-1. Open the link (e.g. `https://localhost:8443/connect?token=frosty_cranky_bandicoot`) or go to `/connect` and enter the session code.
+1. Open the link (e.g. `http://127.0.0.1:8080/connect?token=frosty_cranky_bandicoot`) or go to `/connect` or `/join` and enter the session code.
 2. Click **Connect** → validates and redirects to share screen.
 3. Click **Start sharing** → choose screen/tab (one tap) → advisor sees stream.
 4. See "Live • Sharing" and **Stop sharing** when connected.
 
 ### Advisor (view stream)
 
-1. Use **View session** from the create-session panel, or go to `/session/<sessionId>` or `/?id=<sessionId>`.
+1. Use **View session** or **Open Agent Session** from the create-session panel, or go to `/agent/session/<roomId>`.
 2. When the client starts sharing, the stream appears with overlay tools.
 
 ## Routes
 
 | Path | Description |
 |------|-------------|
-| `/` | Landing — start sharing, create session, join |
-| `/advisor` | Advisor-only create session page |
-| `/connect?token=X` | Client connect page (token in URL) |
-| `/connect` | Client connect page (enter session code manually) |
-| `/start` | Alias for `/connect` (backward compat) |
-| `/session/<id>` | Redirects to `/?id=<id>` (view session) |
+| `/` | Landing — Join session, Advisor login |
+| `/join` | Client manual code entry |
+| `/connect` | Client connect page (enter code or `?token=X`) |
+| `/start` | Alias for `/connect` |
+| `/agent/login` | Agent login form |
+| `/agent` | Agent dashboard (create session) |
+| `/agent/session/<roomId>` | Redirects to stream viewer |
+| `/room/<roomId>` | Redirects to client share page |
+| `/stream.html` | Client share or agent viewer (depends on query params) |
 
 ## API
 

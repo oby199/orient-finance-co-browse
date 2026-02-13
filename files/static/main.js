@@ -195,7 +195,7 @@ async function startScreenShare() {
 
   const pcOption = JSON.parse(JSON.stringify(iceConfig));
 
-  AppState.socket = new WebSocket(getWebsocketUrl() + "/ws_serve");
+  AppState.socket = new WebSocket(getWebsocketUrl() + "/ws/serve");
   AppState.socket.onerror = () => {
     showShareError("Connection error. Please try again.");
   };
@@ -351,7 +351,7 @@ function initViewerView(roomID) {
   const latencyEl = document.getElementById("info-latency");
   const peersEl = document.getElementById("info-peers");
 
-  AppState.socket = new WebSocket(getWebsocketUrl() + "/ws_connect?room=" + encodeURIComponent(roomID));
+  AppState.socket = new WebSocket(getWebsocketUrl() + "/ws/connect?room=" + encodeURIComponent(roomID));
 
   AppState.socket.onerror = () => {
     showViewerError("Connection error. Please check the session code and try again.");

@@ -19,13 +19,29 @@
       const res = await fetch("/api/session/validate", { method: "POST", body: form });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        if (errEl) { errEl.textContent = data?.error || "Session not found or expired"; errEl.style.display = "block"; }
+        if (errEl) {
+          errEl.textContent = data?.error || "Session not found or expired";
+          errEl.style.display = "block";
+        }
+        const retryBtn = document.getElementById("btnRetry");
+        if (retryBtn) {
+          retryBtn.style.display = "block";
+          retryBtn.onclick = () => { errEl.style.display = "none"; retryBtn.style.display = "none"; handleConnect(); };
+        }
         return;
       }
       const roomId = data?.roomId || data?.sessionId || code;
       window.location.href = "/room/" + encodeURIComponent(roomId);
     } catch (e) {
-      if (errEl) { errEl.textContent = "Connection failed. Please try again."; errEl.style.display = "block"; }
+      if (errEl) {
+        errEl.textContent = "Connection failed. Please try again.";
+        errEl.style.display = "block";
+      }
+      const retryBtn = document.getElementById("btnRetry");
+      if (retryBtn) {
+        retryBtn.style.display = "block";
+        retryBtn.onclick = () => { errEl.style.display = "none"; retryBtn.style.display = "none"; handleConnect(); };
+      }
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = "Connect"; }
     }
