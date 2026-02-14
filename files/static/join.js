@@ -6,7 +6,7 @@
   const inputCode = document.getElementById("inputSessionCode");
 
   async function handleConnect() {
-    const code = (inputCode?.value || "").trim().replace(/\s+/g, "_");
+    const code = (inputCode?.value || "").trim().replace(/\s+/g, "_").replace(/^#+/, "");
     if (code.length < 6) {
       if (errEl) { errEl.textContent = "Enter a valid session code (6+ characters)"; errEl.style.display = "block"; }
       return;
@@ -14,9 +14,13 @@
     if (errEl) { errEl.style.display = "none"; }
     if (btn) { btn.disabled = true; btn.textContent = "Validating…"; }
     try {
-      const form = new FormData();
-      form.append("token", code);
-      const res = await fetch("/api/session/validate", { method: "POST", body: form });
+      const params = new URLSearchParams();
+      params.append("token", code);
+      const res = await fetch("/api/session/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: params.toString(),
+      });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         if (errEl) {

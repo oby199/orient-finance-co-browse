@@ -152,8 +152,13 @@ function initUI() {
   LaplaceVar.ui.streamPageUI = document.getElementById("stream-page-ui");
   LaplaceVar.ui.streamServePageUI = document.getElementById("stream-serve-page-ui");
   LaplaceVar.ui.streamSimpleUI = document.getElementById("stream-simple-ui");
+  LaplaceVar.ui.streamStep1 = document.getElementById("stream-step1");
   LaplaceVar.ui.streamStep2 = document.getElementById("stream-step2");
   LaplaceVar.ui.streamStep3 = document.getElementById("stream-step3");
+  LaplaceVar.ui.btnConsentContinue = document.getElementById("btnConsentContinue");
+  LaplaceVar.ui.streamConsentCheck = document.getElementById("streamConsentCheck");
+  LaplaceVar.ui.streamConsentText = document.getElementById("streamConsentText");
+  LaplaceVar.ui.streamConsentLabel = document.getElementById("streamConsentLabel");
   LaplaceVar.ui.btnStartShareSimple = document.getElementById("btnStartShareSimple");
   LaplaceVar.ui.btnStopShare = document.getElementById("btnStopShare");
   LaplaceVar.ui.streamCompatMsg = document.getElementById("stream-compat-msg");
@@ -313,6 +318,23 @@ function updateStatusUIStream() {
   LaplaceVar.status.numConn = LaplaceVar.status.peers.length;
   LaplaceVar.ui.statusPeers.innerHTML = LaplaceVar.status.peers.map((s) => `${s} (${LaplaceVar.pings[LaplaceVar.roomID + "$" + s]} ms)`).join(", ");
   LaplaceVar.ui.statusNumConn.innerHTML = LaplaceVar.status.numConn;
+  if (LaplaceVar.status.numConn === 0) setStreamCardConnected(false);
+}
+
+function setStreamCardConnected(connected) {
+  const simpleUI = LaplaceVar.ui.streamSimpleUI;
+  const card = document.querySelector(".stream-simple-card");
+  const msg = LaplaceVar.ui.streamConnectedMsg;
+  if (!card || !msg) return;
+  if (connected) {
+    card.classList.add("stream-card-connected");
+    if (simpleUI) simpleUI.classList.add("stream-card-compact");
+    msg.textContent = "Connected to advisor";
+  } else {
+    card.classList.remove("stream-card-connected");
+    if (simpleUI) simpleUI.classList.remove("stream-card-compact");
+    msg.textContent = "Waiting for advisor to join…";
+  }
 }
 
 function updateStatusUIJoin() {
@@ -349,10 +371,11 @@ async function newSessionStream(sessionID, pcOption) {
       delete LaplaceVar.pings[sessionID];
       delete LaplaceVar.pingHistories[sessionID];
       updateStatusUIStream();
+      setStreamCardConnected(false);
     }
   };
   updateStatusUIStream();
-  if (LaplaceVar.ui.streamConnectedMsg) LaplaceVar.ui.streamConnectedMsg.textContent = "Connected to advisor";
+  setStreamCardConnected(true);
   LaplaceVar.dataChannels[sessionID] = LaplaceVar.pcs[sessionID].createDataChannel("ping");
   LaplaceVar.dataChannels[sessionID].addEventListener("open", () => {
     LaplaceVar.pingHistories[sessionID] = [];
@@ -405,10 +428,29 @@ async function doStream() {
   if (isClientFlow() && !isDebugMode()) {
     LaplaceVar.ui.streamServePageUI.style.display = "none";
     LaplaceVar.ui.streamSimpleUI.style.display = "flex";
-    LaplaceVar.ui.streamStep2.style.display = "block";
     LaplaceVar.ui.streamStep3.style.display = "none";
     LaplaceVar.ui.videoContainer.style.display = "none";
-    setTimeout(() => startStreamSimple(), 100);
+    const token = LaplaceVar.claimToken;
+    const agentName = token ? (() => {
+      try {
+        return sessionStorage.getItem("orient_agent_" + token) || "";
+      } catch (_) {
+        return "";
+      }
+    })() : "";
+    if (token && LaplaceVar.ui.streamStep1 && LaplaceVar.ui.streamConsentText) {
+      LaplaceVar.ui.streamStep1.style.display = "block";
+      LaplaceVar.ui.streamStep2.style.display = "none";
+      LaplaceVar.ui.streamConsentText.textContent = agentName
+        ? "I hereby consent to " + agentName + " assisting me in completing and submitting my application. My screen will be shared securely with my advisor only."
+        : "I hereby consent to my advisor assisting me in completing and submitting my application. My screen will be shared securely with my advisor only.";
+      if (LaplaceVar.ui.streamConsentLabel) LaplaceVar.ui.streamConsentLabel.textContent = "I consent to the above";
+      LaplaceVar.ui.btnConsentContinue?.addEventListener("click", handleConsentContinue, { once: true });
+    } else {
+      LaplaceVar.ui.streamStep1.style.display = "none";
+      LaplaceVar.ui.streamStep2.style.display = "block";
+      setTimeout(() => startStreamSimple(), 100);
+    }
   } else {
     LaplaceVar.ui.streamSimpleUI.style.display = "none";
     LaplaceVar.ui.streamServePageUI.style.display = "block";
@@ -427,6 +469,47 @@ function supportsDisplayMedia() {
 
 function isLikelyMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+async function handleConsentContinue() {
+  const check = LaplaceVar.ui.streamConsentCheck;
+  if (!check || !check.checked) {
+    showClientToast("Please check the consent box to continue.");
+    return;
+  }
+  const token = LaplaceVar.claimToken;
+  if (!token) {
+    startStreamSimple();
+    return;
+  }
+  const agentName = (() => {
+    try {
+      return sessionStorage.getItem("orient_agent_" + token) || "";
+    } catch (_) {
+      return "";
+    }
+  })();
+  const params = new URLSearchParams();
+  params.append("token", token);
+  params.append("consent", "true");
+  if (agentName) params.append("agentName", agentName);
+  try {
+    const res = await fetch(getBaseUrl() + "/api/session/consent", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
+    });
+    if (!res.ok) {
+      showClientToast("Could not record consent. Please try again.");
+      return;
+    }
+  } catch (e) {
+    showClientToast("Connection failed. Please try again.");
+    return;
+  }
+  LaplaceVar.ui.streamStep1.style.display = "none";
+  LaplaceVar.ui.streamStep2.style.display = "block";
+  startStreamSimple();
 }
 
 async function startStreamSimple() {
@@ -590,6 +673,91 @@ async function gotOffer(sID, v) {
   LaplaceVar.socket.send(JSON.stringify({ Type: "gotAnswer", SessionID: LaplaceVar.sessionID, Value: JSON.stringify(answer) }));
 }
 
+let waitingRetryInterval = null;
+let waitingCountdownInterval = null;
+const WAITING_RETRY_SEC = 5;
+
+function showWaitingForClient(roomID) {
+  const panel = document.getElementById("waiting-for-client");
+  const linkInput = document.getElementById("waiting-connect-link");
+  const copyBtn = document.getElementById("waiting-copy-link");
+  const copyCodeBtn = document.getElementById("waiting-copy-code");
+  const codeEl = document.getElementById("waiting-session-code");
+  const reconnectMsg = document.getElementById("waiting-reconnect-msg");
+  const retryBtn = document.getElementById("waiting-retry-now");
+  if (!panel || !linkInput) return;
+  const connectUrl = getJoinUrl(roomID);
+  linkInput.value = connectUrl;
+  if (codeEl) codeEl.textContent = roomID;
+  if (document.getElementById("video-container")) document.getElementById("video-container").style.display = "none";
+  if (document.getElementById("stream-page-ui")) document.getElementById("stream-page-ui").style.display = "none";
+  panel.style.display = "block";
+
+  function updateCountdown(sec) {
+    if (reconnectMsg) reconnectMsg.textContent = sec > 0 ? "Reconnecting in " + sec + "s…" : "Reconnecting…";
+  }
+
+  copyBtn.onclick = () => {
+    navigator.clipboard.writeText(connectUrl).then(() => {
+      copyBtn.textContent = "Copied!";
+      setTimeout(() => copyBtn.textContent = "Copy link", 2000);
+    });
+  };
+  if (copyCodeBtn) {
+    copyCodeBtn.onclick = () => {
+      navigator.clipboard.writeText(roomID).then(() => {
+        copyCodeBtn.textContent = "Copied!";
+        setTimeout(() => copyCodeBtn.textContent = "Copy code", 2000);
+      });
+    };
+  }
+  retryBtn.onclick = () => { tryConnectAgent(roomID); };
+
+  if (waitingRetryInterval) clearInterval(waitingRetryInterval);
+  if (waitingCountdownInterval) clearInterval(waitingCountdownInterval);
+  updateCountdown(WAITING_RETRY_SEC);
+  let count = WAITING_RETRY_SEC;
+  waitingCountdownInterval = setInterval(() => {
+    count--;
+    updateCountdown(count > 0 ? count : 0);
+    if (count <= 0) count = WAITING_RETRY_SEC;
+  }, 1000);
+  waitingRetryInterval = setInterval(() => tryConnectAgent(roomID), WAITING_RETRY_SEC * 1000);
+}
+
+function hideWaitingForClient() {
+  if (waitingRetryInterval) { clearInterval(waitingRetryInterval); waitingRetryInterval = null; }
+  if (waitingCountdownInterval) { clearInterval(waitingCountdownInterval); waitingCountdownInterval = null; }
+  const panel = document.getElementById("waiting-for-client");
+  if (panel) panel.style.display = "none";
+  if (document.getElementById("video-container")) document.getElementById("video-container").style.display = "block";
+  if (document.getElementById("stream-page-ui")) document.getElementById("stream-page-ui").style.display = "block";
+}
+
+function tryConnectAgent(roomID) {
+  if (LaplaceVar.socket && LaplaceVar.socket.readyState === WebSocket.OPEN) return;
+  if (LaplaceVar.socket) LaplaceVar.socket.close();
+  LaplaceVar.mediaStream = LaplaceVar.mediaStream || new MediaStream();
+  LaplaceVar.ui.video.srcObject = LaplaceVar.mediaStream;
+  LaplaceVar.socket = new WebSocket(getWebsocketUrl() + "/ws/connect?id=" + encodeURIComponent(roomID));
+  LaplaceVar.socket.onerror = () => { /* keep waiting, will retry */ };
+  LaplaceVar.socket.onmessage = async function (e) {
+    try {
+      const jsonData = JSON.parse(e.data);
+      if (jsonData.Type === "newSession") {
+        hideWaitingForClient();
+        await newSessionJoin(jsonData.SessionID);
+      } else if (jsonData.Type === "addCallerIceCandidate") await addCallerIceCandidate(jsonData.SessionID, JSON.parse(jsonData.Value));
+      else if (jsonData.Type === "gotOffer") await gotOffer(jsonData.SessionID, JSON.parse(jsonData.Value));
+      else if (jsonData.Type === "roomNotFound") {
+        showWaitingForClient(roomID);
+      } else if (jsonData.Type === "roomClosed") alert("Room closed");
+    } catch (err) {
+      console.error(err);
+    }
+  };
+}
+
 async function doJoin(roomID) {
   if (!roomID) return alert("roomID is not provided");
   LaplaceVar.roomID = roomID.startsWith("#") ? roomID.slice(1) : roomID;
@@ -601,20 +769,20 @@ async function doJoin(roomID) {
   LaplaceVar.mediaStream = new MediaStream();
   LaplaceVar.ui.video.srcObject = LaplaceVar.mediaStream;
 
-  LaplaceVar.socket = new WebSocket(getWebsocketUrl() + "/ws/connect?id=" + LaplaceVar.roomID);
+  LaplaceVar.socket = new WebSocket(getWebsocketUrl() + "/ws/connect?id=" + encodeURIComponent(LaplaceVar.roomID));
   LaplaceVar.socket.onerror = () => {
-    alert("WebSocket error");
-    leaveRoom();
+    showWaitingForClient(LaplaceVar.roomID);
   };
   LaplaceVar.socket.onmessage = async function (e) {
     try {
       const jsonData = JSON.parse(e.data);
-      if (jsonData.Type === "newSession") await newSessionJoin(jsonData.SessionID);
-      else if (jsonData.Type === "addCallerIceCandidate") await addCallerIceCandidate(jsonData.SessionID, JSON.parse(jsonData.Value));
+      if (jsonData.Type === "newSession") {
+        hideWaitingForClient();
+        await newSessionJoin(jsonData.SessionID);
+      } else if (jsonData.Type === "addCallerIceCandidate") await addCallerIceCandidate(jsonData.SessionID, JSON.parse(jsonData.Value));
       else if (jsonData.Type === "gotOffer") await gotOffer(jsonData.SessionID, JSON.parse(jsonData.Value));
       else if (jsonData.Type === "roomNotFound") {
-        alert("Room not found");
-        leaveRoom();
+        showWaitingForClient(LaplaceVar.roomID);
       } else if (jsonData.Type === "roomClosed") alert("Room closed");
     } catch (err) {
       console.error(err);

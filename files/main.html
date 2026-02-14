@@ -6,7 +6,7 @@
     <title>Orient Finance Co-Browse</title>
     <link rel="icon" href="/static/orient-finance-logo.png" type="image/png">
     <link rel="stylesheet" href="/static/bootstrap.min.css">
-    <link rel="stylesheet" href="/static/laplace-legacy.css?v=2">
+    <link rel="stylesheet" href="/static/laplace-legacy.css?v=4">
     <script src="/static/config.js"></script>
 </head>
 <body>
@@ -82,6 +82,15 @@
 <!-- Client flow: simple mobile-first UI (shown when coming from /connect) -->
 <div id="stream-simple-ui" class="stream-simple-ui" style="display:none;">
   <div class="stream-simple-card">
+    <div id="stream-step1" class="stream-step stream-consent-step" style="display:none;">
+      <h4 class="stream-consent-title">Client Consent</h4>
+      <p class="stream-consent-text" id="streamConsentText">I hereby consent to your advisor assisting you in completing and submitting your application. Your screen will be shared securely with your advisor only.</p>
+      <label class="stream-consent-check">
+        <input type="checkbox" id="streamConsentCheck" required>
+        <span id="streamConsentLabel">I consent</span>
+      </label>
+      <button type="button" class="btn-stream-primary" id="btnConsentContinue">Continue</button>
+    </div>
     <div id="stream-step2" class="stream-step" style="display:none;">
       <button type="button" class="btn-stream-primary" id="btnStartShareSimple">Start sharing</button>
       <button type="button" class="btn-stream-secondary" id="btnNeedHelp">Need help?</button>
@@ -165,6 +174,31 @@
   </div>
 </div>
 
+<!-- Waiting for client (agent viewer, room not yet created) -->
+<div id="waiting-for-client" class="waiting-for-client" style="display:none;" role="status">
+  <div class="waiting-for-client-content">
+    <div class="waiting-status-badge" aria-live="polite">
+      <span class="waiting-spinner" aria-hidden="true"></span>
+      <span>Waiting</span>
+    </div>
+    <h4>Waiting for client to connect</h4>
+    <p class="help-text">Share the link below with your client. The room will appear once they open the link and click <strong>Start sharing</strong>.</p>
+    <div class="waiting-link-wrap">
+      <input type="text" id="waiting-connect-link" class="form-control" readonly aria-label="Connect link">
+      <button type="button" class="btn btn-dark" id="waiting-copy-link">Copy link</button>
+    </div>
+    <div class="waiting-code-row">
+      <span class="help-text">Or share this code:</span>
+      <code id="waiting-session-code" class="waiting-session-code"></code>
+      <button type="button" class="btn btn-outline-dark btn-sm" id="waiting-copy-code">Copy code</button>
+    </div>
+    <div class="waiting-reconnect">
+      <span id="waiting-reconnect-msg">Reconnecting automatically…</span>
+    </div>
+    <button type="button" class="btn btn-outline-dark btn-sm" id="waiting-retry-now">Retry now</button>
+  </div>
+</div>
+
 <!-- Debug panel: dev only (?debug=1) -->
 <div id="debug-panel" class="debug-panel" style="display:none;">
   <small><strong>Debug</strong> route: <span id="debug-route">-</span> | auth: <span id="debug-auth">-</span> | last error: <span id="debug-last-error">-</span></small>
@@ -242,6 +276,6 @@
 </div>
 
 <script src="/static/qrcode.min.js"></script>
-<script src="/static/laplace-legacy.js?v=2"></script>
+<script src="/static/laplace-legacy.js?v=4"></script>
 </body>
 </html>

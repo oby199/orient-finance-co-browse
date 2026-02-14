@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-<!-- AGENT-LOGIN-PAGE: this is the login form only; no dashboard, no logout -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover">
-  <title>Advisor Login — Orient Finance</title>
+  <title>Admin Login — Orient Finance</title>
   <link rel="icon" href="/static/orient-finance-logo.png" type="image/png">
   <link rel="stylesheet" href="/static/bootstrap.min.css">
   <link rel="stylesheet" href="/static/laplace-legacy.css">
@@ -15,12 +14,12 @@
   <div class="agent-login-container">
     <div class="agent-login-card">
       <img src="/static/orient-finance-logo.png" alt="Orient Finance" class="agent-login-logo">
-      <h1 class="agent-login-title">Advisor Login</h1>
+      <h1 class="agent-login-title">Admin Login</h1>
 
       <form id="loginForm" class="agent-login-form">
         <div class="agent-login-field">
           <label for="loginEmail">Email</label>
-          <input type="email" id="loginEmail" name="email" class="form-control" placeholder="sales@orientfinance.com" autocomplete="email" required>
+          <input type="email" id="loginEmail" name="email" class="form-control" placeholder="admin@orientfinance.com" autocomplete="email" required>
         </div>
         <div class="agent-login-field">
           <label for="loginPassword">Password</label>
@@ -35,11 +34,10 @@
           </div>
         </div>
         <div id="loginError" class="agent-login-error" role="alert" style="display:none;"></div>
-        <button type="button" class="btn btn-outline-light btn-sm mt-2" id="btnRetryLogin" style="display:none;">Retry</button>
         <button type="submit" class="btn-agent-login" id="btnLogin">Sign in</button>
       </form>
     </div>
   </div>
-  <script src="/static/agent-login.js?v=2"></script>
+  <script src="/static/admin-login.js"></script>
 </body>
 </html>

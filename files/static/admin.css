@@ -1,0 +1,46 @@
+.admin-nav {
+  flex-wrap: wrap;
+}
+.admin-nav-links {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-left: 1rem;
+}
+.admin-nav-link {
+  font-size: 0.9rem;
+  color: var(--gray-700, #4a5568) !important;
+  text-decoration: none !important;
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+}
+.admin-nav-link:hover {
+  background: var(--gray-200, #edf2f7);
+  color: var(--navy, #1e3a5f) !important;
+}
+.admin-nav-link.active {
+  background: var(--navy, #1e3a5f);
+  color: var(--white, #fff) !important;
+}
+.admin-main {
+  padding: 1.5rem;
+  min-height: 60vh;
+}
+.admin-loading {
+  color: var(--gray-500);
+}
+.admin-card {
+  background: var(--white);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--gray-200);
+  box-shadow: 0 2px 8px rgba(30, 58, 95, 0.08);
+}
+.admin-card h4 { margin: 0 0 1rem; color: var(--navy); }
+.admin-table { width: 100%; }
+.admin-table th, .admin-table td { padding: 0.5rem; text-align: left; }
+.admin-table th { font-weight: 600; color: var(--navy); }
+.admin-badge { font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; }
+.admin-badge-active { background: #c6f6d5; color: #276749; }
+.admin-badge-inactive { background: #fed7d7; color: #c53030; }

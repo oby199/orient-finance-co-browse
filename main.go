@@ -14,6 +14,9 @@ import (
 //go:embed files/agent-login.html
 var agentLoginHTML []byte
 
+//go:embed files/admin-login.html
+var adminLoginHTML []byte
+
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
@@ -22,13 +25,19 @@ func authMiddleware(next http.Handler) http.Handler {
 		}
 		authed := core.IsAuthenticated(r)
 
-		// 1) DETERMINISTIC: /agent/login → ONLY agent-login.html (embedded in binary; no wrong template)
+		// 1) /agent/login and /admin/login → login pages (public)
 		if path == "/agent/login" || strings.HasPrefix(path, "/agent/login/") {
-			log.Printf("[route] /agent/login -> agent-login.html (embedded)")
 			w.Header().Set("Cache-Control", "no-store, no-cache")
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.WriteHeader(http.StatusOK)
 			w.Write(agentLoginHTML)
+			return
+		}
+		if path == "/admin/login" || strings.HasPrefix(path, "/admin/login/") {
+			w.Header().Set("Cache-Control", "no-store, no-cache")
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusOK)
+			w.Write(adminLoginHTML)
 			return
 		}
 
@@ -68,11 +77,25 @@ func authMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Protect /agent, /agent/, /agent/session/* (NOT /agent/login - handled above)
+		// Protect /agent (NOT /agent/login - handled above)
 		if strings.HasPrefix(path, "/agent") {
 			if !authed {
-				log.Printf("[redirect] from=%s to=/agent/login authed=false pathname=%s", path, path)
 				http.Redirect(w, r, "/agent/login", http.StatusFound)
+				return
+			}
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Protect /admin (NOT /admin/login - handled above). Requires admin role.
+		if strings.HasPrefix(path, "/admin") {
+			if !authed {
+				http.Redirect(w, r, "/admin/login", http.StatusFound)
+				return
+			}
+			_, role, _ := core.GetSessionUser(r)
+			if role != core.RoleAdmin {
+				http.Redirect(w, r, "/agent", http.StatusFound)
 				return
 			}
 			next.ServeHTTP(w, r)
@@ -91,6 +114,8 @@ func main() {
 	flag.Parse()
 
 	rand.Seed(time.Now().UnixNano())
+	core.SeedAdmin()
+	core.SeedDefaultAgent()
 	mux := core.GetHttp()
 	server := authMiddleware(mux)
 

@@ -13,17 +13,20 @@
 
   function getTypedCode() {
     if (!inputCode) return "";
-    const raw = (inputCode.value || "").trim().replace(/\s+/g, "_");
+    const raw = (inputCode.value || "").trim().replace(/\s+/g, "_").replace(/^#+/, "");
     return raw;
   }
 
   function getTokenFromUrl() {
     const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
-    if (token) return token.trim();
+    let token = params.get("token");
+    if (!token && window.location.hash) {
+      token = window.location.hash.replace(/^#+/, "").trim();
+    }
+    if (token) return token.trim().replace(/^#+/, "");
     if (window.location.pathname.startsWith("/connect/") || window.location.pathname.startsWith("/start/")) {
       const parts = window.location.pathname.split("/").filter(Boolean);
-      return (parts[parts.length - 1] || "").trim();
+      return (parts[parts.length - 1] || "").trim().replace(/^#+/, "");
     }
     return null;
   }
@@ -77,13 +80,14 @@
   }
 
   async function doValidate(code) {
-    const form = new FormData();
-    form.append("token", code);
+    const params = new URLSearchParams();
+    params.append("token", code);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), VALIDATE_TIMEOUT_MS);
     const res = await fetch(getBaseUrl() + "/api/session/validate", {
       method: "POST",
-      body: form,
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
       signal: controller.signal,
     });
     clearTimeout(timeout);
@@ -118,6 +122,11 @@
 
       const data = await res.json().catch(() => ({}));
       const roomId = data?.roomId || data?.sessionId || code;
+      if (data?.agentName) {
+        try {
+          sessionStorage.setItem("orient_agent_" + roomId, data.agentName);
+        } catch (_) {}
+      }
       setStatus("");
       window.location.href = getBaseUrl() + "/room/" + encodeURIComponent(roomId);
     } catch (e) {
@@ -168,6 +177,11 @@
       }
       const data = await res.json().catch(() => ({}));
       const roomId = data?.roomId || data?.sessionId || token;
+      if (data?.agentName) {
+        try {
+          sessionStorage.setItem("orient_agent_" + roomId, data.agentName);
+        } catch (_) {}
+      }
       window.location.href = getBaseUrl() + "/room/" + encodeURIComponent(roomId);
     } catch (e) {
       setStatus("");

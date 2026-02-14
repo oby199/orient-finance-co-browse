@@ -13,4 +13,6 @@
 | `/agent/login` | `files/agent-login.html` (embedded) + `agent-login.js` | Public | Login form only | **Sign in** → POST login<br>**Retry** → clear error | Success → /agent<br>Already authed → /agent<br>404 → show error, stay | GET /api/auth-check<br>POST /api/login |
 | `/agent` | `files/agent.html` + `agent.js` | Agent-only | Create session, share link | **Create Session** → POST create<br>**Copy** → copy link<br>**Copy code** → copy code<br>**Open Agent Session** → /agent/session/:id<br>**Logout** → /logout<br>**Home** → / | Not authed → /agent/login | POST /api/session/create |
 | `/agent/session/:roomId` | Server redirect | Agent-only | Redirect to viewer | — | → /stream.html?id=:roomId | None |
+| `/admin/login` | `admin-login.html` | Public | Admin login | **Sign in** → redirect by role | Admin → /admin, Agent → /agent | POST /api/login |
+| `/admin` | `admin.html` | Admin-only | Dashboard, Agents, Settings, Documents, Onboarding, Sessions | — | — | GET /api/admin/* |
 | `/logout` | Server handler | Public | Clear session | — | → /agent/login | None |

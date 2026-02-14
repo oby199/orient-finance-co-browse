@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 const (
@@ -21,6 +23,8 @@ const (
 
 type sessionInfo struct {
 	Email   string
+	UserID  string
+	Role    Role
 	Expires time.Time
 }
 
@@ -33,14 +37,102 @@ func defaultAgentEmail() string {
 	if e := os.Getenv("AGENT_EMAIL"); e != "" {
 		return e
 	}
-	return "advisor@orientfinance.com"
+	return "sales@orientfinance.com"
 }
 
 func defaultAgentPassword() string {
 	if p := os.Getenv("AGENT_PASSWORD"); p != "" {
 		return p
 	}
-	return "orient2024"
+	return "orient@123"
+}
+
+func adminEmail() string {
+	if e := os.Getenv("ADMIN_EMAIL"); e != "" {
+		return strings.TrimSpace(strings.ToLower(e))
+	}
+	return ""
+}
+
+func adminPassword() string {
+	return os.Getenv("ADMIN_PASSWORD")
+}
+
+func hashPassword(password string) (string, error) {
+	b, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+func checkPassword(hashed, plain string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hashed), []byte(plain))
+	return err == nil
+}
+
+// SeedAdmin ensures an admin user exists from ADMIN_EMAIL/ADMIN_PASSWORD env vars
+func SeedAdmin() {
+	em := adminEmail()
+	pw := adminPassword()
+	if em == "" || pw == "" {
+		return
+	}
+	u := StoreGetUserByEmail(em)
+	if u != nil && u.Role == RoleAdmin {
+		return
+	}
+	if u != nil {
+		StoreUpdateUser(u.ID, func(usr *User) bool {
+			usr.Role = RoleAdmin
+			usr.Active = true
+			h, _ := hashPassword(pw)
+			usr.Password = h
+			return true
+		})
+		log.Printf("[seed] Admin user updated: %s", em)
+		return
+	}
+	h, err := hashPassword(pw)
+	if err != nil {
+		log.Printf("[seed] Failed to hash admin password: %v", err)
+		return
+	}
+	_, err = StoreCreateUser(em, RoleAdmin, h)
+	if err != nil {
+		log.Printf("[seed] Failed to create admin: %v", err)
+		return
+	}
+	log.Printf("[seed] Admin user created: %s", em)
+}
+
+// SeedDefaultAgent ensures default agent exists from AGENT_EMAIL/AGENT_PASSWORD
+func SeedDefaultAgent() {
+	em := defaultAgentEmail()
+	pw := defaultAgentPassword()
+	em = strings.TrimSpace(strings.ToLower(em))
+	u := StoreGetUserByEmail(em)
+	if u != nil && u.Role == RoleAgent {
+		return
+	}
+	if u != nil {
+		StoreUpdateUser(u.ID, func(usr *User) bool {
+			usr.Role = RoleAgent
+			usr.Active = true
+			h, _ := hashPassword(pw)
+			usr.Password = h
+			return true
+		})
+		log.Printf("[seed] Agent user updated: %s", em)
+		return
+	}
+	h, err := hashPassword(pw)
+	if err != nil {
+		log.Printf("[seed] Failed to hash agent password: %v", err)
+		return
+	}
+	_, _ = StoreCreateUser(em, RoleAgent, h)
+	log.Printf("[seed] Agent user created: %s", em)
 }
 
 func newSessionID() string {
@@ -94,31 +186,95 @@ func IsAuthenticated(r *http.Request) bool {
 	return true
 }
 
-func CreateSession(email string) string {
+func CreateSession(email, userID string, role Role) string {
 	sid := newSessionID()
 	sessionsMu.Lock()
 	sessions[sid] = &sessionInfo{
 		Email:   email,
+		UserID:  userID,
+		Role:    role,
 		Expires: time.Now().Add(time.Duration(maxAge) * time.Second),
 	}
 	sessionsMu.Unlock()
 	return sid
 }
 
-func getSessionInfo(sessionID string) (email string, ok bool) {
+func getSessionInfo(sessionID string) (email, userID string, role Role, ok bool) {
 	sessionsMu.RLock()
 	info, ok := sessions[sessionID]
 	sessionsMu.RUnlock()
 	if !ok || info == nil || time.Now().After(info.Expires) {
-		return "", false
+		return "", "", "", false
 	}
-	return info.Email, true
+	return info.Email, info.UserID, info.Role, true
+}
+
+func GetSessionUser(r *http.Request) (userID string, role Role, ok bool) {
+	sid := getSessionFromRequest(r)
+	if sid == "" {
+		return "", "", false
+	}
+	_, uid, role, ok := getSessionInfo(sid)
+	return uid, role, ok
 }
 
 func DestroySession(sessionID string) {
 	sessionsMu.Lock()
 	delete(sessions, sessionID)
 	sessionsMu.Unlock()
+}
+
+func authenticateUser(email, password string) (*User, string) {
+	email = strings.TrimSpace(strings.ToLower(email))
+	password = strings.TrimSpace(password)
+	if email == "" || password == "" {
+		return nil, "Invalid email or password"
+	}
+	// 1. Check admin env (seed)
+	if ae := adminEmail(); ae != "" && email == ae {
+		if adminPassword() == password {
+			u := StoreGetUserByEmail(email)
+			if u == nil {
+				SeedAdmin()
+				u = StoreGetUserByEmail(email)
+			}
+			if u != nil {
+				return u, ""
+			}
+			// Create on the fly if store failed
+			h, _ := hashPassword(password)
+			nu, _ := StoreCreateUser(email, RoleAdmin, h)
+			if nu != nil {
+				return nu, ""
+			}
+		}
+	}
+	// 2. Check agent env
+	ae := defaultAgentEmail()
+	ap := defaultAgentPassword()
+	ae = strings.TrimSpace(strings.ToLower(ae))
+	if email == ae && password == ap {
+		u := StoreGetUserByEmail(email)
+		if u == nil {
+			SeedDefaultAgent()
+			u = StoreGetUserByEmail(email)
+		}
+		if u != nil {
+			return u, ""
+		}
+	}
+	// 3. Check store
+	u := StoreGetUserByEmail(email)
+	if u == nil {
+		return nil, "Invalid email or password"
+	}
+	if !u.Active {
+		return nil, "Account is disabled"
+	}
+	if !checkPassword(u.Password, password) {
+		return nil, "Invalid email or password"
+	}
+	return u, ""
 }
 
 func apiLogin(w http.ResponseWriter, r *http.Request) {
@@ -131,23 +287,31 @@ func apiLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	email := strings.TrimSpace(strings.ToLower(r.FormValue("email")))
-	password := r.FormValue("password")
+	password := strings.TrimSpace(r.FormValue("password"))
 
-	validEmail := defaultAgentEmail()
-	validPass := defaultAgentPassword()
-
-	if email != validEmail || password != validPass {
+	u, errMsg := authenticateUser(email, password)
+	if u == nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid email or password"})
+		json.NewEncoder(w).Encode(map[string]string{"error": errMsg})
 		return
 	}
 
-	sid := CreateSession(email)
+	sid := CreateSession(u.Email, u.ID, u.Role)
 	setSessionCookie(w, r, sid)
+
+	redirect := "/agent"
+	if u.Role == RoleAdmin {
+		redirect = "/admin"
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"ok": "true", "redirect": "/agent"})
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"ok":       true,
+		"redirect": redirect,
+		"role":     string(u.Role),
+	})
 }
 
 func apiLogout(w http.ResponseWriter, r *http.Request) {
@@ -156,25 +320,37 @@ func apiLogout(w http.ResponseWriter, r *http.Request) {
 		DestroySession(sid)
 	}
 	clearSessionCookie(w)
+	if r.Method == http.MethodPost && r.Header.Get("Accept") == "application/json" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+		return
+	}
 	http.Redirect(w, r, "/agent/login", http.StatusFound)
 }
 
-// ApiAuthCheck handles GET /api/auth-check; 200 + {authed:true} if logged in, 401 + {authed:false} if not. Never 404.
+// ApiAuthCheck handles GET /api/auth-check
 func ApiAuthCheck(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	log.Printf("[auth-check] GET %s", r.URL.Path)
 	w.Header().Set("Content-Type", "application/json")
 	sid := getSessionFromRequest(r)
-	if _, ok := getSessionInfo(sid); ok {
-		log.Printf("[auth-check] authed=true -> 200")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{"authed": true})
+	email, userID, role, ok := getSessionInfo(sid)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{"authed": false})
 		return
 	}
-	log.Printf("[auth-check] authed=false -> 401")
-	w.WriteHeader(http.StatusUnauthorized)
-	json.NewEncoder(w).Encode(map[string]interface{}{"authed": false})
+	resp := map[string]interface{}{
+		"authed": true,
+		"role":   string(role),
+		"user": map[string]interface{}{
+			"id":    userID,
+			"email": email,
+		},
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
 }

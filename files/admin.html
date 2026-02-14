@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>Admin — Orient Finance Co-Browse</title>
+  <link rel="icon" href="/static/orient-finance-logo.png" type="image/png">
+  <link rel="stylesheet" href="/static/bootstrap.min.css">
+  <link rel="stylesheet" href="/static/laplace-legacy.css">
+  <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+  <nav class="navbar admin-nav">
+    <a class="navbar-brand" href="/admin">
+      <img src="/static/orient-finance-logo.png" alt="Orient Finance" class="navbar-logo">
+      <span class="navbar-title">Admin — Orient Finance Co-Browse</span>
+    </a>
+    <div class="admin-nav-links">
+      <a href="/admin" class="admin-nav-link" data-route="/admin">Dashboard</a>
+      <a href="/admin/agents" class="admin-nav-link" data-route="/admin/agents">Agents</a>
+      <a href="/admin/settings" class="admin-nav-link" data-route="/admin/settings">Settings</a>
+      <a href="/admin/documents" class="admin-nav-link" data-route="/admin/documents">Documents</a>
+      <a href="/admin/onboarding-flow" class="admin-nav-link" data-route="/admin/onboarding-flow">Onboarding</a>
+      <a href="/admin/sessions" class="admin-nav-link" data-route="/admin/sessions">Sessions</a>
+    </div>
+    <a href="/logout" class="navbar-logout">Logout</a>
+  </nav>
+  <main class="admin-main container" id="adminContent">
+    <div class="admin-loading" id="adminLoading">Loading…</div>
+  </main>
+  <script src="/static/admin.js"></script>
+</body>
+</html>

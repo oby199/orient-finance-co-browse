@@ -96,6 +96,97 @@ body {
 .error-panel-content p { margin: 0 0 0.5rem 0; color: var(--gray-700); }
 .error-panel-content .btn { min-width: 80px; }
 
+/* Waiting for client (agent viewer) */
+.waiting-for-client {
+  max-width: 540px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--gray-200);
+  box-shadow: var(--shadow-lg);
+}
+
+.waiting-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  background: var(--gray-100);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--gray-700);
+  margin-bottom: 1rem;
+}
+
+.waiting-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--gray-300);
+  border-top-color: var(--navy);
+  border-radius: 50%;
+  animation: waiting-spin 0.8s linear infinite;
+}
+
+@keyframes waiting-spin {
+  to { transform: rotate(360deg); }
+}
+
+.waiting-for-client-content h4 {
+  margin: 0 0 0.5rem 0;
+  color: var(--navy);
+  font-size: 1.35rem;
+}
+
+.waiting-link-wrap {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.waiting-link-wrap input {
+  flex: 1;
+  min-width: 12rem;
+  font-size: 0.9rem;
+  padding: 0.6rem 0.75rem;
+  font-family: ui-monospace, monospace;
+}
+
+.waiting-code-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.waiting-code-row .help-text {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.waiting-session-code {
+  padding: 0.35rem 0.6rem;
+  background: var(--gray-100);
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--navy);
+}
+
+.waiting-reconnect {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  color: var(--gray-500);
+}
+
+#waiting-retry-now {
+  margin-top: 1rem;
+  display: block;
+}
+
 /* Debug panel (dev only) */
 .debug-panel {
   position: fixed;
@@ -466,6 +557,17 @@ body {
   padding-bottom: calc(1rem + env(safe-area-inset-bottom));
 }
 
+.stream-simple-ui.stream-card-compact {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  left: auto;
+  min-height: 0;
+  padding: 0;
+  z-index: 9999;
+  align-items: stretch;
+}
+
 .stream-simple-card {
   background: var(--white);
   border-radius: var(--radius-lg);
@@ -475,6 +577,40 @@ body {
   min-width: 0;
   box-shadow: var(--shadow-lg);
   border: 1px solid var(--gray-200);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* When advisor connects: collapse to compact pill so it doesn't block shared content */
+.stream-simple-card.stream-card-connected {
+  max-width: 340px;
+  padding: 0.5rem 0.75rem;
+}
+
+.stream-simple-card.stream-card-connected .stream-step {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.stream-simple-card.stream-card-connected .stream-live-pill {
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+
+.stream-simple-card.stream-card-connected .stream-connected-msg {
+  margin: 0;
+  flex: 1;
+  font-size: 0.875rem;
+}
+
+.stream-simple-card.stream-card-connected .btn-stream-stop {
+  margin-bottom: 0;
+  min-height: 36px;
+  padding: 0.4rem 1rem;
+  flex-shrink: 0;
+  width: auto;
 }
 
 .stream-step h4 {
@@ -605,6 +741,30 @@ body {
   color: #c53030;
   border-radius: var(--radius);
   font-size: 0.9rem;
+}
+
+.stream-consent-step .stream-consent-title {
+  margin: 0 0 0.75rem;
+  color: var(--navy);
+  font-size: 1.1rem;
+}
+.stream-consent-text {
+  font-size: 0.95rem;
+  color: var(--gray-700);
+  line-height: 1.5;
+  margin: 0 0 1rem;
+}
+.stream-consent-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+  color: var(--gray-700);
+}
+.stream-consent-check input {
+  margin-top: 0.2rem;
 }
 
 .stream-debug-info {

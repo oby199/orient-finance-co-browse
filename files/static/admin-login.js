@@ -7,25 +7,15 @@
 
   async function checkAuthAndRedirect() {
     const pathname = window.location.pathname || "/";
-    const targetAgent = "/agent";
-    if (pathname === targetAgent || pathname.startsWith(targetAgent + "/")) return false;
+    if (!pathname.startsWith("/admin")) return false;
     try {
       const r = await fetch("/api/auth-check", { credentials: "include" });
       const d = await r.json().catch(() => ({}));
-      console.log("[agent-login] auth-check (once):", r.status, JSON.stringify(d));
-      if (r.status === 404) {
-        showError("Server misconfigured: /api/auth-check returned 404. Rebuild and restart the server.");
-        return false;
-      }
-      if (r.ok && (d?.authed === true || d?.authed === "true")) {
-        console.log("[agent-login] redirect from=" + pathname + " to=" + targetAgent + " authed=true");
-        window.location.replace(targetAgent);
+      if (r.ok && d?.authed === true && d?.role === "admin") {
+        window.location.replace("/admin");
         return true;
       }
-    } catch (e) {
-      showError("Cannot reach server. Is it running at " + window.location.origin + "?");
-      return false;
-    }
+    } catch (e) {}
     return false;
   }
 
@@ -34,11 +24,6 @@
       errEl.textContent = msg;
       errEl.style.display = "block";
     }
-    const retryBtn = document.getElementById("btnRetryLogin");
-    if (retryBtn) {
-      retryBtn.style.display = "inline-block";
-      retryBtn.onclick = () => { hideError(); retryBtn.style.display = "none"; };
-    }
   }
 
   function hideError() {
@@ -46,64 +31,48 @@
       errEl.textContent = "";
       errEl.style.display = "none";
     }
-    document.getElementById("btnRetryLogin")?.setAttribute("style", "display:none");
   }
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     hideError();
-
     const email = (document.getElementById("loginEmail").value || "").trim();
     const password = (document.getElementById("loginPassword").value || "").trim();
-
     if (!email || !password) {
       showError("Please enter email and password.");
       return;
     }
-
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = "Signing in…";
-    }
-
+    if (btn) { btn.disabled = true; btn.textContent = "Signing in…"; }
     try {
       const params = new URLSearchParams();
       params.append("email", email);
       params.append("password", password);
-
       const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: params.toString(),
         credentials: "include",
       });
-
       const data = await res.json().catch(() => ({}));
-
       if (!res.ok) {
         showError(data?.error || "Invalid email or password.");
         return;
       }
-
-      window.location.replace(data?.redirect || "/agent");
+      window.location.replace(data?.redirect || "/admin");
     } catch (err) {
       showError("Connection failed. Please try again.");
     } finally {
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = "Login";
-      }
+      if (btn) { btn.disabled = false; btn.textContent = "Sign in"; }
     }
   });
 
   document.getElementById("btnTogglePassword")?.addEventListener("click", () => {
     const input = document.getElementById("loginPassword");
-    const btn = document.getElementById("btnTogglePassword");
-    if (!input || !btn) return;
+    const toggleBtn = document.getElementById("btnTogglePassword");
+    if (!input || !toggleBtn) return;
     const isHidden = input.type === "password";
     input.type = isHidden ? "text" : "password";
-    btn.setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
-    btn.setAttribute("title", isHidden ? "Hide password" : "Show password");
+    toggleBtn.setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
   });
 
   checkAuthAndRedirect();
