@@ -51,11 +51,14 @@ func adminEmail() string {
 	if e := os.Getenv("ADMIN_EMAIL"); e != "" {
 		return strings.TrimSpace(strings.ToLower(e))
 	}
-	return ""
+	return "admin@orientfinance.com"
 }
 
 func adminPassword() string {
-	return os.Getenv("ADMIN_PASSWORD")
+	if p := os.Getenv("ADMIN_PASSWORD"); p != "" {
+		return p
+	}
+	return "myadmin123"
 }
 
 func hashPassword(password string) (string, error) {
@@ -112,12 +115,12 @@ func SeedDefaultAgent() {
 	pw := defaultAgentPassword()
 	em = strings.TrimSpace(strings.ToLower(em))
 	u := StoreGetUserByEmail(em)
-	if u != nil && u.Role == RoleAgent {
+	if u != nil && u.Role == RoleSRM {
 		return
 	}
 	if u != nil {
 		StoreUpdateUser(u.ID, func(usr *User) bool {
-			usr.Role = RoleAgent
+			usr.Role = RoleSRM
 			usr.Active = true
 			h, _ := hashPassword(pw)
 			usr.Password = h
@@ -131,7 +134,7 @@ func SeedDefaultAgent() {
 		log.Printf("[seed] Failed to hash agent password: %v", err)
 		return
 	}
-	_, _ = StoreCreateUser(em, RoleAgent, h)
+	_, _ = StoreCreateUser(em, RoleSRM, h)
 	log.Printf("[seed] Agent user created: %s", em)
 }
 
@@ -299,8 +302,9 @@ func apiLogin(w http.ResponseWriter, r *http.Request) {
 
 	sid := CreateSession(u.Email, u.ID, u.Role)
 	setSessionCookie(w, r, sid)
+	StoreAppendGlobalAudit(string(u.Role), u.ID, "login", map[string]interface{}{"email": email})
 
-	redirect := "/agent"
+	redirect := "/srm"
 	if u.Role == RoleAdmin {
 		redirect = "/admin"
 	}
@@ -326,7 +330,7 @@ func apiLogout(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 		return
 	}
-	http.Redirect(w, r, "/agent/login", http.StatusFound)
+	http.Redirect(w, r, "/srm/login", http.StatusFound)
 }
 
 // ApiAuthCheck handles GET /api/auth-check

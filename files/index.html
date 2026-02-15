@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <meta name="description" content="Orient Finance Co-Browse — Secure screen sharing with your advisor">
+  <meta name="description" content="Orient Finance Co-Browse — Secure screen sharing with your Sales Relationship Manager">
   <title>Orient Finance Co-Browse</title>
   <link rel="icon" href="/static/orient-finance-logo.png" type="image/png">
   <link rel="stylesheet" href="/static/main.css?v=1">
@@ -17,7 +17,7 @@
           <img src="/static/orient-finance-logo.png" alt="Orient Finance" class="logo" width="120" height="48" aria-hidden="false">
           <div>
             <h1 class="brand-title">Orient Finance Co-Browse</h1>
-            <p class="brand-tagline" id="tagline">Secure screen sharing with your advisor</p>
+            <p class="brand-tagline" id="tagline">Secure screen sharing with your Sales Relationship Manager</p>
           </div>
         </div>
       </header>
@@ -27,11 +27,11 @@
         <div class="cards">
           <article class="card card-primary" aria-labelledby="card-client-head">
             <h3 id="card-client-head" class="card-title">Start a Support Session</h3>
-            <p class="card-desc">Share your screen with your advisor securely.</p>
+            <p class="card-desc">Share your screen with your SRM securely.</p>
             <a href="/share" class="btn btn-primary" id="btn-start-sharing">Start Sharing</a>
           </article>
           <article class="card card-secondary" aria-labelledby="card-agent-head">
-            <h3 id="card-agent-head" class="card-title">Join as Advisor</h3>
+            <h3 id="card-agent-head" class="card-title">Join as SRM</h3>
             <p class="card-desc">Enter the session code shared by your client.</p>
             <form id="join-form-landing" class="join-form" novalidate>
               <label for="input-session-code-landing" class="sr-only">Session code</label>
@@ -47,7 +47,7 @@
     <!-- CLIENT SHARE WIZARD (/share) -->
     <main id="view-share" class="view view-hidden" role="main" aria-label="Share your screen">
       <header class="header header-compact">
-        <a href="/" class="back-link" aria-label="Back to home">← Back</a>
+        <a href="/srm" class="back-link" aria-label="Back to home">← Back</a>
         <span class="brand-compact" id="brand-compact-share">Orient Finance Co-Browse</span>
       </header>
 
@@ -61,7 +61,7 @@
         <!-- Step 1: Prepare -->
         <section id="share-step-1" class="wizard-step" data-step="1" aria-labelledby="step1-head">
           <h2 id="step1-head" class="step-head">Prepare to share</h2>
-          <p class="step-desc">Your advisor will be able to see your screen in real time. You control when sharing starts and stops.</p>
+          <p class="step-desc">Your SRM will be able to see your screen in real time. You control when sharing starts and stops.</p>
           <div class="privacy-notice" role="note">
             <strong>Privacy notice:</strong> Only your screen is shared. You can stop anytime.
           </div>
@@ -75,13 +75,13 @@
           <button type="button" class="btn btn-primary" id="btn-start-screen-share">Start Screen Share</button>
 
           <div id="share-step2-code" class="share-code-block share-code-hidden">
-            <p class="code-label">Share this code with your advisor</p>
+            <p class="code-label">Share this code with your SRM</p>
             <div class="code-display">
               <span id="display-session-code" class="code-value" aria-live="polite"></span>
               <button type="button" class="btn btn-outline btn-copy" id="btn-copy-code" aria-label="Copy session code">Copy</button>
             </div>
             <div id="qrcode-container" class="qrcode-container"></div>
-            <p class="code-hint">Your advisor can scan the QR code or enter the code manually.</p>
+            <p class="code-hint">Your SRM can scan the QR code or enter the code manually.</p>
           </div>
         </section>
 
@@ -102,7 +102,7 @@
             <button type="button" class="btn btn-outline btn-danger" id="btn-stop-sharing">Stop sharing</button>
           </div>
           <div class="conn-status" id="share-conn-status">
-            <span id="share-peer-count">0</span> advisor(s) connected
+            <span id="share-peer-count">0</span> SRM(s) connected
           </div>
           <details class="troubleshoot">
             <summary>Troubleshooting</summary>
@@ -121,12 +121,12 @@
     <!-- ADVISOR JOIN (/join) -->
     <main id="view-join" class="view view-hidden" role="main" aria-label="Join session">
       <header class="header header-compact">
-        <a href="/" class="back-link" aria-label="Back to home">← Back</a>
+        <a href="/srm" class="back-link" aria-label="Back to home">← Back</a>
         <span class="brand-compact">Orient Finance Co-Browse</span>
       </header>
 
       <section class="join-section">
-        <h2 class="join-head">Join as Advisor</h2>
+        <h2 class="join-head">Join as SRM</h2>
         <p class="join-desc">Enter the session code your client shared with you.</p>
         <form id="join-form-page" class="join-form-standalone">
           <label for="input-session-code-join">Session Code</label>
@@ -141,7 +141,7 @@
     <!-- ADVISOR VIEW (/view?room=) -->
     <main id="view-viewer" class="view view-hidden" role="main" aria-label="View shared screen">
       <header class="header header-compact">
-        <a href="/" class="back-link" aria-label="Back to home">← Back</a>
+        <a href="/srm" class="back-link" aria-label="Back to home">← Back</a>
         <span class="brand-compact">Orient Finance Co-Browse</span>
         <span id="viewer-status" class="status-badge status-waiting" aria-live="polite">Waiting for client</span>
       </header>

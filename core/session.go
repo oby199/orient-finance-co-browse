@@ -1,6 +1,9 @@
 package core
 
 import (
+	"crypto/rand"
+	"fmt"
+	"math/big"
 	"sync"
 	"time"
 )
@@ -74,11 +77,25 @@ var (
 	rateWindow    = time.Minute
 )
 
-// CreatePendingSession creates a new session token for the agent to share
+// GenerateNumericSessionCode returns a crypto-secure 6-digit numeric code
+func GenerateNumericSessionCode() string {
+	n, err := rand.Int(rand.Reader, big.NewInt(1000000))
+	if err != nil {
+		return fmt.Sprintf("%06d", time.Now().UnixNano()%1000000)
+	}
+	return fmt.Sprintf("%06d", n.Int64())
+}
+
+// CreatePendingSession creates a new session token for the agent to share (numeric 6-digit code)
 func CreatePendingSession() string {
-	token := GetRandomName(0)
-	for GetRoom(token) != nil {
-		token = GetRandomName(0)
+	var token string
+	for {
+		token = GenerateNumericSessionCode()
+		if GetRoom(token) == nil {
+			if _, exists := defaultStore.Get(token); !exists {
+				break
+			}
+		}
 	}
 	_ = defaultStore.Create(token, sessionTTL)
 	return token

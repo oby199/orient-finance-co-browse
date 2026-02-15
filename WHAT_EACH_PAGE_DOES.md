@@ -4,7 +4,7 @@
 
 | Route | File | Access | Purpose | Buttons | Redirects | API Calls |
 |-------|------|--------|---------|---------|-----------|-----------|
-| `/` | `files/landing.html` | Public | Landing: client vs advisor choice | **Join session** → /join<br>**Advisor login** → /agent/login | — | None |
+| `/` | `files/landing.html` | Public | Landing: client vs SRM choice | **Join session** → /join<br>**SRM login** → /srm/login | — | None |
 | `/join` | `files/join.html` + `join.js` | Public | Manual session code entry | **Connect** → validates, redirects<br>**Retry** → retry after error<br>**← Back** → /<br>**I have a connect link** → /connect | Success → /room/:roomId<br>Failure → stay, show error | POST /api/session/validate |
 | `/connect` | `files/connect.html` + `connect.js` | Public | Enter code or use ?token=X | **Connect** → validates, redirects<br>**Retry** → retry after error<br>**← Home** → / | Success → /room/:roomId<br>Failure → stay | POST /api/session/validate |
 | `/start` | Same as /connect | Public | Alias for /connect | Same as /connect | Same | Same |

@@ -3,6 +3,7 @@ package core
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -39,7 +40,7 @@ func RequireAgentOrAdmin(next http.HandlerFunc) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Unauthorized", "authed": false})
 			return
 		}
-		if role != RoleAdmin && role != RoleAgent {
+		if role != RoleAdmin && role != RoleSRM {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusForbidden)
 			json.NewEncoder(w).Encode(map[string]string{"error": "Agent or Admin access required"})
@@ -64,7 +65,7 @@ func adminDashboard(w http.ResponseWriter, r *http.Request) {
 			pending++
 		}
 	}
-	agents := StoreListUsers(RoleAgent)
+	agents := StoreListUsers(RoleSRM)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"companyName":    settings.CompanyName,
@@ -75,7 +76,7 @@ func adminDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func adminListAgents(w http.ResponseWriter, r *http.Request) {
-	list := StoreListUsers(RoleAgent)
+	list := StoreListUsers(RoleSRM)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{"agents": list})
 }
@@ -111,7 +112,7 @@ func adminCreateAgent(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to create agent"})
 		return
 	}
-	u, err := StoreCreateUser(email, RoleAgent, h)
+	u, err := StoreCreateUser(email, RoleSRM, h)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to create agent"})
@@ -122,6 +123,8 @@ func adminCreateAgent(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "Agent with this email already exists"})
 		return
 	}
+	userID, _, _ := GetSessionUser(r)
+	StoreAppendGlobalAudit("admin", userID, "srm_create", map[string]interface{}{"email": email, "id": u.ID})
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -134,7 +137,9 @@ func adminUpdateAgent(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	path := strings.TrimPrefix(r.URL.Path, "/agents/")
+	path := r.URL.Path
+	path = strings.TrimPrefix(path, "/agents/")
+	path = strings.TrimPrefix(path, "/srms/")
 	agentID := strings.Split(path, "/")[0]
 	if agentID == "" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -151,7 +156,7 @@ func adminUpdateAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok := StoreUpdateUser(agentID, func(u *User) bool {
-		if u.Role != RoleAgent {
+		if u.Role != RoleSRM {
 			return false
 		}
 		if body.Active != nil {
@@ -167,6 +172,13 @@ func adminUpdateAgent(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(map[string]string{"error": "Agent not found"})
 		return
+	}
+	userID, _, _ := GetSessionUser(r)
+	if body.Active != nil {
+		StoreAppendGlobalAudit("admin", userID, "srm_toggle", map[string]interface{}{"agentId": agentID, "active": *body.Active})
+	}
+	if body.Password != nil {
+		StoreAppendGlobalAudit("admin", userID, "srm_password_reset", map[string]interface{}{"agentId": agentID})
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
@@ -190,6 +202,8 @@ func adminSetSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	StoreSetGlobalSettings(&s)
+	userID, _, _ := GetSessionUser(r)
+	StoreAppendGlobalAudit("admin", userID, "settings_update", map[string]interface{}{"companyName": s.CompanyName})
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
@@ -217,6 +231,8 @@ func adminCreateDocument(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	StoreSaveDocument(&d)
+	userID, _, _ := GetSessionUser(r)
+	StoreAppendGlobalAudit("admin", userID, "document_create", map[string]interface{}{"title": d.Title, "id": d.ID})
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(d)
 }
@@ -263,6 +279,8 @@ func adminDeleteDocument(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	StoreDeleteDocument(id)
+	userID, _, _ := GetSessionUser(r)
+	StoreAppendGlobalAudit("admin", userID, "document_delete", map[string]interface{}{"id": id})
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -301,14 +319,62 @@ func adminSetOnboardingFlow(w http.ResponseWriter, r *http.Request) {
 		s.KycModeDefault = body.KycMode
 	}
 	StoreSetGlobalSettings(s)
+	userID, _, _ := GetSessionUser(r)
+	StoreAppendGlobalAudit("admin", userID, "onboarding_flow_update", map[string]interface{}{"steps": body.Steps})
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+}
+
+func adminListAudit(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	limit := 100
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if n, err := strconv.Atoi(l); err == nil && n > 0 && n <= 500 {
+			limit = n
+		}
+	}
+	list := StoreListGlobalAudit(limit)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"events": list})
 }
 
 func adminListSessions(w http.ResponseWriter, r *http.Request) {
 	list := StoreListSessions()
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{"sessions": list})
+}
+
+func adminTerminateSession(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost && r.Method != http.MethodDelete {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	path := strings.TrimPrefix(r.URL.Path, "/sessions/")
+	sessionID := strings.Split(path, "/")[0]
+	if sessionID == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Session ID required"})
+		return
+	}
+	ok := StoreUpdateSession(sessionID, func(s *CoBrowseSession) bool {
+		s.Status = StatusEnded
+		now := time.Now()
+		s.EndedAt = &now
+		return true
+	})
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Session not found"})
+		return
+	}
+	userID, _, _ := GetSessionUser(r)
+	StoreAppendAudit(sessionID, "admin", userID, "admin_terminate", map[string]interface{}{})
+	StoreAppendGlobalAudit("admin", userID, "session_terminate", map[string]interface{}{"sessionId": sessionID})
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
 func adminGetSession(w http.ResponseWriter, r *http.Request) {

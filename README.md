@@ -1,6 +1,6 @@
 # Orient Finance Co-Browse
 
-Secure screen sharing for **Orient Finance Broker** — advisors create sessions, share links with clients, and view client screens in real time. Built on WebRTC with Go signaling.
+Secure screen sharing for **Orient Finance Broker** — Sales Relationship Managers (SRMs) create sessions, share links with clients, and view client screens in real time. Built on WebRTC with Go signaling.
 
 ## Quick Start
 
@@ -23,49 +23,118 @@ go build -o laplace .
 
 Then open **http://127.0.0.1:8080** (HTTP) or **https://localhost:8443** (HTTPS). For self-signed certs, type `thisisunsafe` in Chrome when prompted.
 
-> **Important:** The app must be reached through the server URL (e.g. http://127.0.0.1:8080). Opening HTML files directly (`file://`) will not work—links and buttons depend on the server.
+> **Important:** The app must be reached through the server URL. Opening HTML files directly (`file://`) will not work—links and buttons depend on the server.
 
-## Flow
+---
 
-### Agent (Advisor)
+## Route Map
 
-1. Go to **http://127.0.0.1:8080** → click **Advisor login** → sign in (default: advisor@orientfinance.com / orient2024).
-2. On `/agent`, click **Create Session**.
-3. Share the **connect link** or **session code** with the client (WhatsApp/SMS).
-
-### Client (mobile-first)
-
-1. Open the link (e.g. `http://127.0.0.1:8080/connect?token=frosty_cranky_bandicoot`) or go to `/connect` or `/join` and enter the session code.
-2. Click **Connect** → validates and redirects to share screen.
-3. Click **Start sharing** → choose screen/tab (one tap) → advisor sees stream.
-4. See "Live • Sharing" and **Stop sharing** when connected.
-
-### Advisor (view stream)
-
-1. Use **View session** or **Open Agent Session** from the create-session panel, or go to `/agent/session/<roomId>`.
-2. When the client starts sharing, the stream appears with overlay tools.
-
-## Routes
+### Public (no login)
 
 | Path | Description |
 |------|-------------|
-| `/` | Landing — Join session, Advisor login |
-| `/join` | Client manual code entry |
-| `/connect` | Client connect page (enter code or `?token=X`) |
+| `/` | Landing — "I'm a client" or "SRM login" |
+| `/join` | Client enters session code manually |
+| `/connect` | Client connect page (code or `?token=X` prefills) |
 | `/start` | Alias for `/connect` |
-| `/agent/login` | Agent login form |
-| `/agent` | Agent dashboard (create session) |
-| `/agent/session/<roomId>` | Redirects to stream viewer |
 | `/room/<roomId>` | Redirects to client share page |
-| `/stream.html` | Client share or agent viewer (depends on query params) |
+| `/stream.html?stream=1&room=X` | Client share screen page |
 
-## API
+### SRM (Sales Relationship Manager) — requires login
+
+| Path | Description |
+|------|-------------|
+| `/srm/login` | SRM login form |
+| `/srm` | SRM dashboard (create session, copy link/code/QR) |
+| `/srm/session/<roomId>` | Redirects to viewer |
+| `/viewer/<roomId>` | Redirects to viewer |
+| `/stream.html?id=X` | Viewer mode (watch client screen) |
+
+*Legacy: `/agent/*` redirects to `/srm/*` (301).*
+
+### Admin — requires admin login
+
+| Path | Description |
+|------|-------------|
+| `/admin/login` | Admin login form |
+| `/admin` | Dashboard (stats) |
+| `/admin/srms` | Manage SRMs (create, disable, reset password) |
+| `/admin/settings` | Global settings (company, brand, session expiry, KYC) |
+| `/admin/documents` | Document templates |
+| `/admin/onboarding` | Onboarding flow steps |
+| `/admin/sessions` | Sessions list + detail (terminate) |
+| `/admin/audit` | Audit log |
+
+---
+
+## API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/create-session` | POST/GET | Create session; returns `token`, `sessionId`, `sessionCode` |
-| `/api/validate?token=X` | GET | Validate token before client connects |
-| `/api/health` | GET | Health check |
+| `/api/health` | GET | Health check — `{"status":"ok"}` |
+| `/api/auth-check` | GET | Returns `authed`, `role`, `user` (for SRM/Admin) |
+| `/api/login` | POST | Login (form: email, password) |
+| `/api/logout` | GET/POST | Logout |
+| `/api/session/create` | POST | Create session (SRM/Admin); returns `token`, `roomId`, `connectUrl`, `sessionCode` |
+| `/api/session/validate` | POST | Validate token/code before client connects |
+| `/api/session/consent` | POST | Record client consent |
+| `/api/admin/*` | Various | Admin API (dashboard, agents, settings, documents, onboarding, sessions, audit) |
+
+---
+
+## Role-Based Access
+
+### Client (public)
+- Can: enter code, open connect link, share screen
+- Cannot: access SRM or Admin pages
+
+### Sales Relationship Manager (SRM)
+- Must login first
+- Can: create sessions, copy link/code/QR, open viewer, end session, see session history
+- Cannot: manage users, change global settings
+
+### Admin
+- Must login at `/admin/login`
+- Can: manage SRMs, global settings, onboarding flow, documents, sessions, audit log
+- Can terminate any session
+
+**Default credentials (dev):**
+- SRM: `sales@orientfinance.com` / `orient@123` (or `AGENT_EMAIL` / `AGENT_PASSWORD` env)
+- Admin: `admin@orientfinance.com` / `myadmin123` (or `ADMIN_EMAIL` / `ADMIN_PASSWORD` env)
+
+---
+
+## How SRM Onboards a Client
+
+1. **SRM logs in** → go to `/srm/login`, sign in.
+2. **Create Session** → on `/srm` dashboard, click "Create Session".
+3. **Share with client**:
+   - Copy link (e.g. `https://yourserver/connect?token=482731`)
+   - Or copy the session code (e.g. `482731`)
+   - Or share the QR code
+4. **Client enters code** (or opens link):
+   - Client goes to `/join` or `/connect`
+   - Enters code manually, or link pre-fills it
+   - Clicks "Connect"
+5. **Client shares screen**:
+   - After validation, client is redirected to share screen page
+   - Clicks "Start sharing" → picks screen/tab
+6. **SRM views** → click "Open Viewer" or go to `/viewer/<roomId>` or `/srm/session/<roomId>`.
+7. **Assist client** → use overlay tools (cursor, laser, highlight, request click).
+8. **End session** → client clicks "Stop sharing" or SRM ends from dashboard.
+
+---
+
+## SRM Overlay Tools
+
+When viewing the client stream:
+
+- **Cursor** — Shows SRM cursor on the stream
+- **Laser** — Hold `L` for red laser pointer
+- **Highlight** — Click "Highlight", then click-drag to draw a fading rectangle
+- **Request click** — Sends a prompt to the client (e.g. "Please click here")
+
+---
 
 ## Configuration
 
@@ -73,58 +142,46 @@ Edit `files/static/config.js`:
 
 ```javascript
 window.OrientFinanceConfig = {
-  BASE_URL: "",                    // Leave empty for current origin
-  CUSTOMER_APP_BASE_URL: "",       // For client links (e.g. production domain)
+  BASE_URL: "",
+  CUSTOMER_APP_BASE_URL: "",
   CONNECT_PATH: "/connect",
   STUN_URLS: ["stun:stun1.l.google.com:19302", "stun:stun2.l.google.com:19302"],
-  TURN_URLS: [],                   // Optional: ["turn:your-turn-server:3478"]
+  TURN_URLS: [],
   TURN_USER: "",
   TURN_PASS: "",
 };
 ```
 
-## Agent Overlay Tools
-
-When viewing the client stream, advisors can use:
-
-- **Cursor** — Shows agent cursor on the stream.
-- **Laser** — Hold `L` for a red laser pointer.
-- **Highlight** — Click "Highlight", then click-drag to draw a fading rectangle.
-- **Request click** — Sends a prompt to the client (e.g. "Please click here").
-
-## Session Store
-
-Sessions use an in-memory store by default. The `SessionStore` interface in `core/session.go` allows swapping to Firestore or another backend.
+---
 
 ## Security
 
-- Session tokens are random (e.g. `frosty_cranky_bandicoot`) and expire in 15 minutes unless the stream is active.
+- Session codes are 6-digit numeric (e.g. `482731`), crypto-random, and expire in 15 minutes unless the stream is active.
 - Rate limit: 10 connect attempts per IP per minute.
+- Admin and SRM use separate session cookies.
 
-## How to test (checklist)
-
-- [ ] **Advisor:** `/advisor` → Create Session → copy link
-- [ ] **Client:** Open link → Connect → redirected to "Share your screen"
-- [ ] **Client:** Click "Start sharing" → pick screen/tab → see "Live • Sharing"
-- [ ] **Advisor:** View session → see client stream with overlay tools
-- [ ] **Client:** "Need help?" opens bottom sheet
-- [ ] **Client:** "Stop sharing" ends stream
-- [ ] **Debug:** Add `?debug=1` to stream URL to see config panel
+---
 
 ## Known Limitations
 
 - Screen sharing on **iOS Safari** is limited; use Chrome/Edge on desktop.
 - Requires **HTTPS** (or localhost) for `getDisplayMedia` and WebRTC.
 - Sessions end when the client closes or navigates away.
-- No true remote control of external sites (e.g. clientportal.orientfinance.net); overlay tools are visual only.
+- Overlay tools are visual only; no remote control of external sites.
 
-## Files Changed (summary)
+---
 
-- `core/signal.go` — routing, API, rate limit
-- `core/session.go` — `SessionStore` interface, 15 min TTL
-- `files/advisor.html` — new advisor page
-- `files/static/advisor.js` — create session logic
-- `files/connect.html`, `files/static/connect.js`, `files/static/connect.css` — session code input, two-step flow
-- `files/static/laplace-legacy.js` — overlay (highlight box), ice config
-- `files/static/config.js` — STUN/TURN
-- `files/main.html` — copy, highlight button
+## Browser Extension Noise (MetaMask etc.)
+
+If you see console errors like "Failed to connect to MetaMask" or "extension not found", these come from **browser extensions** (e.g. MetaMask, wallet extensions), not from this application. This app does not use MetaMask, `window.ethereum`, or Web3. You can safely ignore such messages.
+
+---
+
+## Test Checklist
+
+- [ ] **SRM:** `/srm/login` → Create Session → copy link
+- [ ] **Client:** `/join` or `/connect` → enter code → Connect
+- [ ] **Client:** Start sharing → see "Live • Sharing"
+- [ ] **SRM:** Open Viewer → see client stream with overlay tools
+- [ ] **Client:** "Stop sharing" ends stream
+- [ ] **Admin:** `/admin/login` → manage SRMs, settings, sessions, audit

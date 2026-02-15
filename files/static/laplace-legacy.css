@@ -580,7 +580,7 @@ body {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* When advisor connects: collapse to compact pill so it doesn't block shared content */
+/* When SRM connects: collapse to compact pill so it doesn't block shared content */
 .stream-simple-card.stream-card-connected {
   max-width: 340px;
   padding: 0.5rem 0.75rem;

@@ -10,7 +10,7 @@
 </head>
 <body>
   <nav class="navbar">
-    <a class="navbar-brand" href="/">
+    <a class="navbar-brand" href="/srm">
       <img src="/static/orient-finance-logo.png" alt="Orient Finance" class="navbar-logo">
       <span class="navbar-title">Orient Finance Co-Browse</span>
     </a>
@@ -18,17 +18,23 @@
   <div class="container">
     <div class="panel">
       <h4>Welcome</h4>
-      <p class="help-text">Secure screen sharing with your advisor.</p>
+      <p class="help-text">Secure screen sharing with your Sales Relationship Manager.</p>
       <div class="separator"></div>
       <h4>I'm a client</h4>
-      <p class="help-text">Enter the session code from your advisor or open the link they shared.</p>
+      <p class="help-text">Enter the session code from your SRM or open the link they shared.</p>
       <a href="/join" class="btn btn-dark btn-block">Join session</a>
       <div class="separator"></div>
-      <h4>I'm an advisor</h4>
+      <h4>Sales Relationship Manager (SRM)</h4>
       <p class="help-text">Log in to create sessions and view client screens.</p>
-      <a href="/agent/login" class="btn btn-dark btn-block">Advisor login</a>
+      <a href="/srm/login" class="btn btn-dark btn-block" id="srmLoginBtn">SRM login</a>
     </div>
   </div>
   <div class="container"><hr><div class="text-center small">© Orient Finance Broker — Co-Browse</div></div>
+  <script>
+    document.getElementById("srmLoginBtn")?.addEventListener("click", function(e) {
+      e.preventDefault();
+      window.location.href = "/srm/login";
+    });
+  </script>
 </body>
 </html>

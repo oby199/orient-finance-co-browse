@@ -83,8 +83,9 @@ Once you have one admin, log in at `/admin/login`, go to **Agents**, and create 
 | `/api/auth-check` | GET | — | Returns `{ authed, role, user }` |
 | `/api/logout` | POST | — | Clears session |
 | `/api/admin/dashboard` | GET | Admin | Dashboard stats |
-| `/api/admin/agents` | GET/POST | Admin | List agents / create agent |
-| `/api/admin/agents/:id` | PUT | Admin | Update agent (active, password) |
+| `/api/admin/agents` | GET/POST | Admin | List SRMs / create SRM (legacy) |
+| `/api/admin/srms` | GET/POST | Admin | List SRMs / create SRM |
+| `/api/admin/srms/:id` | PUT | Admin | Update SRM (active, password) |
 | `/api/admin/settings` | GET/PUT | Admin | Global settings |
 | `/api/admin/documents` | GET/POST | Admin | List/create documents |
 | `/api/admin/documents/:id` | PUT/DELETE | Admin | Update/delete document |
@@ -99,7 +100,7 @@ Once you have one admin, log in at `/admin/login`, go to **Agents**, and create 
 |-------|-------------|
 | `/admin/login` | Admin login (public) |
 | `/admin` | Dashboard |
-| `/admin/agents` | Agent management |
+| `/admin/srms` | SRM management |
 | `/admin/settings` | Global settings |
 | `/admin/documents` | Document templates |
 | `/admin/onboarding-flow` | Onboarding flow config |
@@ -111,7 +112,7 @@ Once you have one admin, log in at `/admin/login`, go to **Agents**, and create 
 
 - All `/api/admin/*` endpoints require `RoleAdmin`. This is enforced in `RequireAdmin()` middleware.
 - Session creation (`/api/session/create`, `/api/create-session`) requires agent or admin auth.
-- Middleware in `main.go` redirects unauthenticated users from `/admin` to `/admin/login`, and non-admin users to `/agent`.
+- Middleware in `main.go` redirects unauthenticated users from `/admin` to `/admin/login`, and non-admin users to `/srm`.
 
 ## Audit Logging
 

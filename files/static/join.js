@@ -4,13 +4,24 @@
   const btn = document.getElementById("btnConnect");
   const errEl = document.getElementById("connect-error");
   const inputCode = document.getElementById("inputSessionCode");
+  const SESSION_CODE_LENGTH = 6;
+  let isSubmitting = false;
+
+  function getTypedCode() {
+    return (inputCode?.value || "").replace(/\D/g, "").slice(0, 8);
+  }
+
+  function updateButtonState() {
+    if (btn) btn.disabled = getTypedCode().length < SESSION_CODE_LENGTH;
+  }
 
   async function handleConnect() {
-    const code = (inputCode?.value || "").trim().replace(/\s+/g, "_").replace(/^#+/, "");
+    const code = getTypedCode();
     if (code.length < 6) {
-      if (errEl) { errEl.textContent = "Enter a valid session code (6+ characters)"; errEl.style.display = "block"; }
+      if (errEl) { errEl.textContent = "Enter a 6-digit session code"; errEl.style.display = "block"; }
       return;
     }
+    isSubmitting = true;
     if (errEl) { errEl.style.display = "none"; }
     if (btn) { btn.disabled = true; btn.textContent = "Validating…"; }
     try {
@@ -47,9 +58,18 @@
         retryBtn.onclick = () => { errEl.style.display = "none"; retryBtn.style.display = "none"; handleConnect(); };
       }
     } finally {
+      isSubmitting = false;
       if (btn) { btn.disabled = false; btn.textContent = "Connect"; }
     }
   }
   if (btn) btn.addEventListener("click", handleConnect);
-  if (inputCode) inputCode.addEventListener("keydown", (e) => { if (e.key === "Enter") handleConnect(); });
+  if (inputCode) {
+    inputCode.addEventListener("input", function() {
+      this.value = (this.value || "").replace(/\D/g, "").slice(0, 8);
+      updateButtonState();
+      if (getTypedCode().length === SESSION_CODE_LENGTH && !isSubmitting) handleConnect();
+    });
+    inputCode.addEventListener("keydown", (e) => { if (e.key === "Enter") handleConnect(); });
+    updateButtonState();
+  }
 })();

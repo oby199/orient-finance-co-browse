@@ -15,7 +15,7 @@ type Role string
 
 const (
 	RoleAdmin  Role = "admin"
-	RoleAgent  Role = "agent"
+	RoleSRM  Role = "srm"
 	RoleClient Role = "client"
 )
 
@@ -114,9 +114,10 @@ var (
 	usersByEmail   = make(map[string]string)
 	globalSettings *GlobalSettings
 	docTemplates   = make(map[string]*DocumentTemplate)
-	coBrowseSessions = make(map[string]*CoBrowseSession)
-	sessionsByToken = make(map[string]*CoBrowseSession)
-	auditEvents    = make(map[string][]*AuditEvent) // sessionId -> events
+	coBrowseSessions  = make(map[string]*CoBrowseSession)
+	sessionsByToken   = make(map[string]*CoBrowseSession)
+	auditEvents       = make(map[string][]*AuditEvent) // sessionId -> events
+	globalAuditEvents []*AuditEvent                    // system-wide audit (logins, settings, etc.)
 )
 
 func initStore() {
@@ -126,7 +127,7 @@ func initStore() {
 			BrandColor:           "#1e3a5f",
 			LogoPath:             "/static/orient-finance-logo.png",
 			SessionExpiryMinutes: 15,
-			CodeFormat:           "word_word_word",
+			CodeFormat:           "numeric_6",
 			OnboardingSteps:      []string{"CONNECT", "SHARE", "DOCS", "FORM", "KYC", "SIGN", "REVIEW", "SUBMITTED"},
 			KycModeDefault:       "manual",
 			AllowedCountries:     []string{},
@@ -338,6 +339,18 @@ func StoreListSessions() []CoBrowseSession {
 	return list
 }
 
+func StoreListSessionsByAgent(agentID string) []CoBrowseSession {
+	storeMu.RLock()
+	defer storeMu.RUnlock()
+	var list []CoBrowseSession
+	for _, s := range coBrowseSessions {
+		if s != nil && s.AgentID == agentID {
+			list = append(list, *s)
+		}
+	}
+	return list
+}
+
 func StoreAppendAudit(sessionID, actorRole, actorID, action string, payload map[string]interface{}) {
 	storeMu.Lock()
 	defer storeMu.Unlock()
@@ -359,6 +372,41 @@ func StoreGetAuditEvents(sessionID string) []AuditEvent {
 	evs := auditEvents[sessionID]
 	if evs == nil {
 		return nil
+	}
+	list := make([]AuditEvent, len(evs))
+	for i, e := range evs {
+		list[i] = *e
+	}
+	return list
+}
+
+func StoreAppendGlobalAudit(actorRole, actorID, action string, payload map[string]interface{}) {
+	storeMu.Lock()
+	defer storeMu.Unlock()
+	ev := &AuditEvent{
+		ID:        GetRandomName(1),
+		SessionID: "",
+		ActorRole: actorRole,
+		ActorID:   actorID,
+		Action:    action,
+		Payload:   payload,
+		CreatedAt: time.Now(),
+	}
+	globalAuditEvents = append(globalAuditEvents, ev)
+	if len(globalAuditEvents) > 1000 {
+		globalAuditEvents = globalAuditEvents[len(globalAuditEvents)-500:]
+	}
+}
+
+func StoreListGlobalAudit(limit int) []AuditEvent {
+	storeMu.RLock()
+	defer storeMu.RUnlock()
+	if limit <= 0 {
+		limit = 100
+	}
+	evs := globalAuditEvents
+	if len(evs) > limit {
+		evs = evs[len(evs)-limit:]
 	}
 	list := make([]AuditEvent, len(evs))
 	for i, e := range evs {

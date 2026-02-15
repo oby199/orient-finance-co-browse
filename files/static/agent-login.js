@@ -7,7 +7,7 @@
 
   async function checkAuthAndRedirect() {
     const pathname = window.location.pathname || "/";
-    const targetAgent = "/agent";
+    const targetAgent = "/srm";
     if (pathname === targetAgent || pathname.startsWith(targetAgent + "/")) return false;
     try {
       const r = await fetch("/api/auth-check", { credentials: "include" });
@@ -85,7 +85,7 @@
         return;
       }
 
-      window.location.replace(data?.redirect || "/agent");
+      window.location.replace(data?.redirect || "/srm");
     } catch (err) {
       showError("Connection failed. Please try again.");
     } finally {

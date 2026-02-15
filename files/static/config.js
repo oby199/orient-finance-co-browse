@@ -9,7 +9,7 @@ window.OrientFinanceConfig = {
   BRAND_NAME: "Orient Finance Broker",
   PRODUCT_NAME: "Orient Finance Co-Browse",
   LOGO_PATH: "/static/orient-finance-logo.png",
-  TAGLINE: "Secure screen sharing with your advisor",
+  TAGLINE: "Secure screen sharing with your Sales Relationship Manager",
   BASE_URL: "",
   CUSTOMER_APP_BASE_URL: "",
   CONNECT_PATH: "/connect",

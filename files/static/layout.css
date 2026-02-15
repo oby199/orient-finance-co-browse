@@ -1,0 +1,105 @@
+/* Orient Finance — Layout (Admin + SRM sidebar layout) */
+
+:root {
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 72px;
+  --topbar-height: 56px;
+  --brand-navy: #1e3a5f;
+  --brand-navy-light: #2d4a6f;
+  --page-padding: 24px;
+  --card-radius: 12px;
+  --card-shadow: 0 2px 8px rgba(30, 58, 95, 0.08);
+  --card-shadow-hover: 0 4px 16px rgba(30, 58, 95, 0.12);
+  --breakpoint-sidebar: 1024px;
+}
+
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+  background: #f5f7fa;
+}
+
+.app-layout .main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-layout .topbar {
+  height: var(--topbar-height);
+  padding: 0 var(--page-padding);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+.app-layout .topbar-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--brand-navy);
+}
+
+.app-layout .topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-layout .topbar-user {
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.topbar-srm-portal-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid #1e3a5f;
+  border-radius: 8px;
+  background: transparent;
+  color: #1e3a5f;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.topbar-srm-portal-btn:hover {
+  background: rgba(30, 58, 95, 0.08);
+  color: #1e3a5f;
+}
+
+.app-layout .page-content {
+  flex: 1;
+  padding: var(--page-padding);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* Hamburger (mobile only) */
+.topbar-hamburger {
+  display: none;
+  background: none;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  color: var(--brand-navy);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+@media (max-width: 1023px) {
+  .topbar-hamburger {
+    display: block;
+  }
+
+  .app-layout .page-content {
+    padding: 16px;
+  }
+}

@@ -33,7 +33,7 @@
   async function handleConnect() {
     const token = getToken();
     if (!token) {
-      showError("This link is invalid or expired. Ask your advisor to generate a new link.");
+      showError("This link is invalid or expired. Ask your SRM to generate a new link.");
       return;
     }
 
@@ -44,7 +44,7 @@
     try {
       const res = await fetch("/api/validate?token=" + encodeURIComponent(token));
       if (!res.ok) {
-        showError("This link is invalid or expired. Ask your advisor to generate a new link.");
+        showError("This link is invalid or expired. Ask your SRM to generate a new link.");
         return;
       }
 
@@ -61,7 +61,7 @@
   if (token) {
     btn.disabled = false;
   } else {
-    showError("This link is invalid or expired. Ask your advisor to generate a new link.");
+    showError("This link is invalid or expired. Ask your SRM to generate a new link.");
   }
 
   btn.addEventListener("click", handleConnect);

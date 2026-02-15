@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover">
-  <title>Connect to your Advisor — Orient Finance</title>
+  <title>Connect to your Sales Relationship Manager — Orient Finance</title>
   <link rel="icon" href="/static/orient-finance-logo.png" type="image/png">
   <link rel="stylesheet" href="/static/bootstrap.min.css">
   <link rel="stylesheet" href="/static/laplace-legacy.css?v=2">
@@ -12,21 +12,21 @@
 </head>
 <body class="connect-page">
   <nav class="navbar">
-    <a class="navbar-brand" href="/">
+    <a class="navbar-brand" href="/srm">
       <img src="/static/orient-finance-logo.png" alt="Orient Finance" class="navbar-logo">
       <span class="navbar-title">Orient Finance Co-Browse</span>
     </a>
-    <a href="/" class="navbar-logout">← Home</a>
+    <a href="/srm" class="navbar-logout">← Home</a>
   </nav>
   <div class="connect-container">
     <div class="connect-card">
       <img src="/static/orient-finance-logo.png" alt="Orient Finance" class="connect-logo">
-      <h1 class="connect-title">Connect to your Advisor</h1>
-      <p class="connect-subtitle">Enter the code given by your advisor and start screen share.</p>
+      <h1 class="connect-title">Connect to your Sales Relationship Manager</h1>
+      <p class="connect-subtitle">Enter the code given by your SRM and start screen share.</p>
 
       <div id="connect-code-section" class="connect-form-group">
         <label for="inputSessionCode">Enter session code</label>
-        <input type="text" id="inputSessionCode" class="form-control" placeholder="e.g. frosty_cranky_bandicoot" autocomplete="off" maxlength="64">
+        <input type="text" id="inputSessionCode" class="form-control" placeholder="e.g. 482731" autocomplete="off" maxlength="8" inputmode="numeric" pattern="[0-9]*">
         <p id="connect-hint" class="connect-hint" style="display:none;"></p>
       </div>
 

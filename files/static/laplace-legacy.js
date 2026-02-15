@@ -245,7 +245,7 @@ function initUI() {
       }
       const viewLink = document.getElementById("agent-view-link");
       if (viewLink) {
-        viewLink.href = "/agent/session/" + encodeURIComponent(token);
+        viewLink.href = "/srm/session/" + encodeURIComponent(token);
         viewLink.target = "_blank";
         viewLink.style.display = "inline-block";
       }
@@ -329,11 +329,11 @@ function setStreamCardConnected(connected) {
   if (connected) {
     card.classList.add("stream-card-connected");
     if (simpleUI) simpleUI.classList.add("stream-card-compact");
-    msg.textContent = "Connected to advisor";
+    msg.textContent = "Connected to your SRM";
   } else {
     card.classList.remove("stream-card-connected");
     if (simpleUI) simpleUI.classList.remove("stream-card-compact");
-    msg.textContent = "Waiting for advisor to join…";
+    msg.textContent = "Waiting for your SRM to join…";
   }
 }
 
@@ -442,8 +442,8 @@ async function doStream() {
       LaplaceVar.ui.streamStep1.style.display = "block";
       LaplaceVar.ui.streamStep2.style.display = "none";
       LaplaceVar.ui.streamConsentText.textContent = agentName
-        ? "I hereby consent to " + agentName + " assisting me in completing and submitting my application. My screen will be shared securely with my advisor only."
-        : "I hereby consent to my advisor assisting me in completing and submitting my application. My screen will be shared securely with my advisor only.";
+        ? "I hereby consent to " + agentName + " assisting me in completing and submitting my application. My screen will be shared securely with my SRM only."
+        : "I hereby consent to my Sales Relationship Manager assisting me in completing and submitting my application. My screen will be shared securely with my SRM only.";
       if (LaplaceVar.ui.streamConsentLabel) LaplaceVar.ui.streamConsentLabel.textContent = "I consent to the above";
       LaplaceVar.ui.btnConsentContinue?.addEventListener("click", handleConsentContinue, { once: true });
     } else {
@@ -558,7 +558,7 @@ async function startStreamSimple() {
   LaplaceVar.ui.streamStep3.style.display = "block";
   LaplaceVar.ui.streamSimpleUI.style.display = "flex";
   LaplaceVar.ui.videoContainer.style.display = "block";
-  showClientToast("Connected. Your advisor can now see your screen.");
+  showClientToast("Connected. Your SRM can now see your screen.");
 
   LaplaceVar.mediaStream = mediaStream;
   await startStream(displayMediaOption, pcOption);
@@ -800,7 +800,7 @@ function routeByUrl() {
 }
 
 function leaveRoom() {
-  window.location.href = getBaseUrl();
+  window.location.href = getBaseUrl() + "/srm";
 }
 
 function initAgentOverlay() {
@@ -934,9 +934,9 @@ function initAgentOverlay() {
 
 (function ensureAuth() {
   const pathname = window.location.pathname || "/";
-  const targetLogin = "/agent/login";
+  const targetLogin = "/srm/login";
 
-  // This script runs ONLY on /stream.html (main.html). /agent/login is served by middleware - never loads this.
+  // This script runs ONLY on /stream.html (main.html). /srm/login is served by middleware - never loads this.
   if (pathname === targetLogin || pathname.startsWith(targetLogin + "/")) {
     return;
   }

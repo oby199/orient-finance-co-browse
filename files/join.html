@@ -11,21 +11,21 @@
 </head>
 <body class="connect-page">
   <nav class="navbar">
-    <a class="navbar-brand" href="/">
+    <a class="navbar-brand" href="/srm">
       <img src="/static/orient-finance-logo.png" alt="Orient Finance" class="navbar-logo">
       <span class="navbar-title">Orient Finance Co-Browse</span>
     </a>
-    <a href="/" class="navbar-logout">← Back</a>
+    <a href="/srm" class="navbar-logout">← Back</a>
   </nav>
   <div class="connect-container">
     <div class="connect-card">
       <img src="/static/orient-finance-logo.png" alt="Orient Finance" class="connect-logo">
       <h1 class="connect-title">Join session</h1>
-      <p class="connect-subtitle">Enter the session code from your advisor or use the connect link.</p>
+      <p class="connect-subtitle">Enter the session code from your SRM or use the connect link.</p>
       <p><a href="/connect">I have a connect link</a></p>
       <div class="connect-form-group">
         <label for="inputSessionCode">Session code</label>
-        <input type="text" id="inputSessionCode" class="form-control" placeholder="e.g. frosty_cranky_bandicoot" autocomplete="off">
+        <input type="text" id="inputSessionCode" class="form-control" placeholder="e.g. 482731" autocomplete="off" maxlength="8" inputmode="numeric" pattern="[0-9]*">
       </div>
       <div id="connect-error" class="connect-error" role="alert" style="display:none;"></div>
       <button type="button" class="btn btn-outline-dark btn-sm mt-2" id="btnRetry" style="display:none;">Retry</button>

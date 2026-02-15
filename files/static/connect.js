@@ -8,13 +8,13 @@
   const hintEl = document.getElementById("connect-hint");
 
   const VALIDATE_TIMEOUT_MS = 15000;
+  const SESSION_CODE_LENGTH = 6;
   const MIN_CODE_LENGTH = 6;
   let isSubmitting = false;
 
   function getTypedCode() {
     if (!inputCode) return "";
-    const raw = (inputCode.value || "").trim().replace(/\s+/g, "_").replace(/^#+/, "");
-    return raw;
+    return (inputCode.value || "").replace(/\D/g, "").slice(0, 8);
   }
 
   function getTokenFromUrl() {
@@ -111,7 +111,8 @@
 
       if (!res.ok) {
         if (res.status === 400) {
-          showError("Invalid code");
+          const data = await res.json().catch(() => ({}));
+          showError(data?.error || "Invalid session code");
         } else if (res.status === 404) {
           showError("Session not found or expired");
         } else {
@@ -147,12 +148,18 @@
   if (inputCode) {
     const urlToken = getTokenFromUrl();
     if (urlToken) {
-      inputCode.value = urlToken;
+      const numericOnly = String(urlToken).replace(/\D/g, "").slice(0, 8);
+      inputCode.value = numericOnly;
       updateButtonState();
     } else {
       inputCode.value = "";
     }
-    inputCode.addEventListener("input", updateButtonState);
+    inputCode.addEventListener("input", function() {
+      const digits = (this.value || "").replace(/\D/g, "");
+      this.value = digits.slice(0, 8);
+      updateButtonState();
+      if (digits.length === SESSION_CODE_LENGTH && !isSubmitting) handleConnect();
+    });
     inputCode.addEventListener("keydown", (e) => {
       if (e.key === "Enter") handleConnect();
     });
@@ -163,12 +170,13 @@
   // Auto-validate when visiting /connect?token=... and redirect to /room/:roomId
   (async function autoValidateFromToken() {
     const token = getTokenFromUrl();
-    if (!token || token.length < MIN_CODE_LENGTH) return;
+    const numericToken = token ? String(token).replace(/\D/g, "").slice(0, 8) : "";
+    if (!numericToken || numericToken.length < 6) return;
     if (!btn || !statusEl) return;
     setStatus("Validating…");
     if (btn) { btn.disabled = true; btn.textContent = "Connecting…"; }
     try {
-      const res = await doValidate(token);
+      const res = await doValidate(numericToken);
       if (!res.ok) {
         setStatus("");
         updateHint("Session not found or expired. You can try entering the code manually.");
@@ -176,7 +184,7 @@
         return;
       }
       const data = await res.json().catch(() => ({}));
-      const roomId = data?.roomId || data?.sessionId || token;
+      const roomId = data?.roomId || data?.sessionId || numericToken;
       if (data?.agentName) {
         try {
           sessionStorage.setItem("orient_agent_" + roomId, data.agentName);

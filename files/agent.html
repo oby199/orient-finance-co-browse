@@ -3,45 +3,50 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <title>Advisor — Orient Finance Co-Browse</title>
+  <title>SRM Dashboard — Orient Finance Co-Browse</title>
   <link rel="icon" href="/static/orient-finance-logo.png" type="image/png">
   <link rel="stylesheet" href="/static/bootstrap.min.css">
+  <link rel="stylesheet" href="/static/layout.css">
+  <link rel="stylesheet" href="/static/sidebar.css">
+  <link rel="stylesheet" href="/static/components.css">
   <link rel="stylesheet" href="/static/laplace-legacy.css">
 </head>
 <body>
-  <nav class="navbar">
-    <a class="navbar-brand" href="/agent">
-      <img src="/static/orient-finance-logo.png" alt="Orient Finance" class="navbar-logo">
-      <span class="navbar-title">Orient Finance Co-Browse — Advisor</span>
-    </a>
-    <a href="/logout" class="navbar-logout">Logout</a>
-  </nav>
-  <div class="container">
-    <div class="panel">
-      <h4>Create session</h4>
-      <p class="help-text">Create a secure session and share the link with your client.</p>
-      <button type="button" class="btn btn-dark btn-block" id="btnCreateSession">Create Session</button>
-      <div id="agent-create-error" class="agent-error" role="alert" style="display:none;"></div>
-      <button type="button" class="btn btn-outline-dark btn-sm mt-2" id="btnRetryCreate" style="display:none;">Retry</button>
-      <div id="agent-link-area" class="agent-link-area" style="display:none;">
-        <label for="agentLink" class="help-text">Share this link with your client:</label>
-        <div class="input-group mt-1">
-          <input type="text" id="agentLink" class="form-control" readonly>
-          <button type="button" class="btn btn-outline-dark" id="btnCopyLink">Copy</button>
-        </div>
-        <div class="agent-otp-row mt-2">
-          <label class="help-text">Manual code:</label>
-          <code id="agentSessionCode" class="agent-code"></code>
-          <button type="button" class="btn btn-outline-dark btn-sm" id="btnCopyOtp">Copy code</button>
-        </div>
-        <div id="agent-qr" class="agent-qr mt-2"></div>
-        <a href="#" id="agent-open-session" class="btn btn-dark btn-block mt-2" style="display:none;">Open Agent Session</a>
+  <div class="app-layout has-sidebar">
+    <aside class="sidebar" id="srmSidebar">
+      <div class="sidebar-header">
+        <a href="/srm" class="sidebar-logo">
+          <img src="/static/orient-finance-logo.png" alt="Orient Finance">
+          <span class="sidebar-title">Sales Relationship Manager</span>
+        </a>
       </div>
-    </div>
+      <nav class="sidebar-nav">
+        <a href="/srm" class="sidebar-nav-link" data-route="/srm"><span class="nav-icon">🏠</span>Dashboard</a>
+        <a href="/srm" class="sidebar-primary-btn" id="btnCreateSessionSidebar">➕ Create Session</a>
+        <a href="/srm/sessions" class="sidebar-nav-link" data-route="/srm/sessions"><span class="nav-icon">📊</span>My Sessions</a>
+        <a href="/srm/profile" class="sidebar-nav-link" data-route="/srm/profile"><span class="nav-icon">👤</span>Profile</a>
+      </nav>
+      <div class="sidebar-footer">
+        <a href="/logout" class="sidebar-logout" style="text-decoration:none;display:flex;align-items:center;gap:12px;color:inherit;">
+          <span class="nav-icon">🚪</span>Logout
+        </a>
+      </div>
+    </aside>
+    <div class="sidebar-overlay" id="srmSidebarOverlay"></div>
+    <main class="main-content">
+      <header class="topbar">
+        <button type="button" class="topbar-hamburger" id="srmSidebarToggle" aria-label="Menu">☰</button>
+        <h1 class="topbar-title" id="srmPageTitle">Dashboard</h1>
+        <span class="topbar-user" id="srmTopbarUser">SRM</span>
+      </header>
+      <section class="page-content">
+        <div id="srmContent"></div>
+      </section>
+    </main>
   </div>
-  <div class="container"><hr><div class="text-center small"><a href="/">Home</a> · © Orient Finance Broker</div></div>
   <script src="/static/config.js"></script>
   <script src="/static/qrcode.min.js"></script>
+  <script src="/static/toast.js"></script>
   <script src="/static/agent.js"></script>
 </body>
 </html>

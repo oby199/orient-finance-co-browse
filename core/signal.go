@@ -17,7 +17,7 @@ type WSMessage struct {
     Value     string
 }
 
-func apiHealth(w http.ResponseWriter, r *http.Request) {
+func ApiHealth(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(http.StatusOK)
     json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
@@ -28,10 +28,20 @@ func apiValidate(w http.ResponseWriter, r *http.Request) {
         w.WriteHeader(http.StatusMethodNotAllowed)
         return
     }
-    token := r.URL.Query().Get("token")
+    token := strings.TrimSpace(r.URL.Query().Get("token"))
     if token == "" {
         w.WriteHeader(http.StatusBadRequest)
         return
+    }
+    if len(token) < 6 || len(token) > 8 {
+        w.WriteHeader(http.StatusBadRequest)
+        return
+    }
+    for _, c := range token {
+        if c < '0' || c > '9' {
+            w.WriteHeader(http.StatusBadRequest)
+            return
+        }
     }
     ip := r.RemoteAddr
     if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
@@ -67,6 +77,20 @@ func apiSessionValidate(w http.ResponseWriter, r *http.Request) {
         w.WriteHeader(http.StatusBadRequest)
         json.NewEncoder(w).Encode(map[string]string{"error": "token or code required"})
         return
+    }
+    if len(token) < 6 || len(token) > 8 {
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusBadRequest)
+        json.NewEncoder(w).Encode(map[string]string{"error": "Invalid session code"})
+        return
+    }
+    for _, c := range token {
+        if c < '0' || c > '9' {
+            w.Header().Set("Content-Type", "application/json")
+            w.WriteHeader(http.StatusBadRequest)
+            json.NewEncoder(w).Encode(map[string]string{"error": "Invalid session code"})
+            return
+        }
     }
     ip := r.RemoteAddr
     if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
@@ -167,7 +191,7 @@ func apiSessionCreate(w http.ResponseWriter, r *http.Request) {
         return
     }
     userID, role, authed := GetSessionUser(r)
-    if !authed || (role != RoleAgent && role != RoleAdmin) {
+    if !authed || (role != RoleSRM && role != RoleAdmin) {
         w.Header().Set("Content-Type", "application/json")
         w.WriteHeader(http.StatusUnauthorized)
         json.NewEncoder(w).Encode(map[string]string{"error": "Agent or Admin login required"})
@@ -177,6 +201,7 @@ func apiSessionCreate(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Access-Control-Allow-Origin", "*")
     token := CreatePendingSession()
     StoreCreateSession(token, userID)
+    StoreAppendGlobalAudit(string(role), userID, "session_create", map[string]interface{}{"token": token})
     log.Println("session/create: roomId=", token, "agentId=", userID)
     scheme := "https"
     if r.TLS == nil {
@@ -201,6 +226,25 @@ func apiSessionCreate(w http.ResponseWriter, r *http.Request) {
     }
 }
 
+func apiAgentSessions(w http.ResponseWriter, r *http.Request) {
+    if r.Method != http.MethodGet {
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusMethodNotAllowed)
+        json.NewEncoder(w).Encode(map[string]string{"error": "method not allowed"})
+        return
+    }
+    userID, role, authed := GetSessionUser(r)
+    if !authed || (role != RoleSRM && role != RoleAdmin) {
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusUnauthorized)
+        json.NewEncoder(w).Encode(map[string]string{"error": "login required"})
+        return
+    }
+    list := StoreListSessionsByAgent(userID)
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]interface{}{"sessions": list})
+}
+
 func apiCreateSession(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")
     w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -215,7 +259,7 @@ func apiCreateSession(w http.ResponseWriter, r *http.Request) {
         return
     }
     userID, role, authed := GetSessionUser(r)
-    if !authed || (role != RoleAgent && role != RoleAdmin) {
+    if !authed || (role != RoleSRM && role != RoleAdmin) {
         w.WriteHeader(http.StatusUnauthorized)
         json.NewEncoder(w).Encode(map[string]string{"error": "Agent or Admin login required"})
         return
@@ -259,11 +303,12 @@ func GetHttp() *http.ServeMux {
 
     // API sub-mux: /api/*
     apiMux := http.NewServeMux()
-    apiMux.HandleFunc("/health", apiHealth)
+    apiMux.HandleFunc("/health", ApiHealth)
     apiMux.HandleFunc("/validate", apiValidate)
     apiMux.HandleFunc("/create-session", apiCreateSession)
     sessionApi := http.NewServeMux()
     sessionApi.HandleFunc("/create", apiSessionCreate)
+    sessionApi.HandleFunc("/list", apiAgentSessions)
     sessionApi.HandleFunc("/validate", apiSessionValidate)
     sessionApi.HandleFunc("/consent", apiSessionConsent)
     apiMux.Handle("/session/", http.StripPrefix("/session", sessionApi))
@@ -282,6 +327,22 @@ func GetHttp() *http.ServeMux {
         }
     }))
     adminApi.HandleFunc("/agents", RequireAdmin(func(w http.ResponseWriter, r *http.Request) {
+        if r.Method == http.MethodGet {
+            adminListAgents(w, r)
+        } else if r.Method == http.MethodPost {
+            adminCreateAgent(w, r)
+        } else {
+            w.WriteHeader(http.StatusMethodNotAllowed)
+        }
+    }))
+    adminApi.HandleFunc("/srms/", RequireAdmin(func(w http.ResponseWriter, r *http.Request) {
+        if r.Method == http.MethodPut || r.Method == http.MethodPatch {
+            adminUpdateAgent(w, r)
+        } else {
+            w.WriteHeader(http.StatusMethodNotAllowed)
+        }
+    }))
+    adminApi.HandleFunc("/srms", RequireAdmin(func(w http.ResponseWriter, r *http.Request) {
         if r.Method == http.MethodGet {
             adminListAgents(w, r)
         } else if r.Method == http.MethodPost {
@@ -323,7 +384,20 @@ func GetHttp() *http.ServeMux {
         }
     }))
     adminApi.HandleFunc("/sessions", RequireAdmin(adminListSessions))
-    adminApi.HandleFunc("/sessions/", RequireAdmin(adminGetSession))
+    adminApi.HandleFunc("/sessions/", RequireAdmin(func(w http.ResponseWriter, r *http.Request) {
+        path := strings.TrimPrefix(r.URL.Path, "/sessions/")
+        id := strings.Split(path, "/")[0]
+        if id == "" {
+            http.Error(w, "session id required", http.StatusBadRequest)
+            return
+        }
+        if r.Method == http.MethodPost || r.Method == http.MethodDelete {
+            adminTerminateSession(w, r)
+        } else {
+            adminGetSession(w, r)
+        }
+    }))
+    adminApi.HandleFunc("/audit", RequireAdmin(adminListAudit))
     adminApi.HandleFunc("/review/", RequireAdmin(func(w http.ResponseWriter, r *http.Request) {
         if r.Method == http.MethodPut || r.Method == http.MethodPost {
             adminReviewSession(w, r)
@@ -343,7 +417,6 @@ func GetHttp() *http.ServeMux {
     server.HandleFunc("/start", connectHandler)
     server.HandleFunc("/start/", connectHandler)
 
-    server.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "files/landing.html") })
     server.HandleFunc("/join", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "files/join.html") })
 
     server.HandleFunc("/room/", func(w http.ResponseWriter, r *http.Request) {
@@ -361,26 +434,23 @@ func GetHttp() *http.ServeMux {
 
     server.HandleFunc("/stream.html", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "files/main.html") })
 
-    // /agent/login: serve ONLY login page (fallback if middleware bypassed; middleware also handles)
-    server.HandleFunc("/agent/login", func(w http.ResponseWriter, r *http.Request) {
+    // SRM login (only /srm/login — /agent/* redirects handled in middleware)
+    serveSRMLogin := func(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("Cache-Control", "no-store, no-cache")
         http.ServeFile(w, r, "files/agent-login.html")
-    })
-    server.HandleFunc("/agent/login/", func(w http.ResponseWriter, r *http.Request) {
-        http.Redirect(w, r, "/agent/login", http.StatusMovedPermanently)
+    }
+    server.HandleFunc("/srm/login", serveSRMLogin)
+    server.HandleFunc("/srm/login/", func(w http.ResponseWriter, r *http.Request) {
+        http.Redirect(w, r, "/srm/login", http.StatusMovedPermanently)
         return
     })
 
-    // Agent routes: /agent, /agent/session/* (NOT /agent/login - handled above)
-    agentRoutes := func(w http.ResponseWriter, r *http.Request) {
+    // SRM routes: /srm, /srm/session/:roomId, /viewer/:roomId
+    srmRoutes := func(w http.ResponseWriter, r *http.Request) {
         path := r.URL.Path
-        if path == "/agent/login" || strings.HasPrefix(path, "/agent/login/") {
-            http.Redirect(w, r, "/agent/login", http.StatusFound)
-            return
-        }
         w.Header().Set("Cache-Control", "no-store, no-cache")
-        if strings.HasPrefix(path, "/agent/session/") {
-            roomId := strings.TrimPrefix(path, "/agent/session/")
+        if strings.HasPrefix(path, "/viewer/") {
+            roomId := strings.TrimPrefix(path, "/viewer/")
             if idx := strings.Index(roomId, "/"); idx >= 0 {
                 roomId = roomId[:idx]
             }
@@ -390,14 +460,35 @@ func GetHttp() *http.ServeMux {
                 return
             }
         }
-        if path == "/agent" || path == "/agent/" || strings.HasPrefix(path, "/agent/") {
+        if strings.HasPrefix(path, "/srm/session/") {
+            roomId := strings.TrimPrefix(path, "/srm/session/")
+            if idx := strings.Index(roomId, "/"); idx >= 0 {
+                roomId = roomId[:idx]
+            }
+            roomId = strings.TrimSpace(roomId)
+            if roomId != "" {
+                http.Redirect(w, r, "/stream.html?id="+url.QueryEscape(roomId), http.StatusFound)
+                return
+            }
+        }
+        if path == "/srm" || path == "/srm/" || strings.HasPrefix(path, "/srm/") {
             http.ServeFile(w, r, "files/agent.html")
             return
         }
-        http.Redirect(w, r, "/agent", http.StatusFound)
+        http.Redirect(w, r, "/srm", http.StatusFound)
     }
-    server.HandleFunc("/agent", agentRoutes)
-    server.HandleFunc("/agent/", agentRoutes)
+    server.HandleFunc("/srm", srmRoutes)
+    server.HandleFunc("/srm/", srmRoutes)
+    server.HandleFunc("/viewer/", srmRoutes)
+
+    // Redirect /agent/* → /srm/* (permanent — middleware does this before mux; fallback here)
+    server.HandleFunc("/agent", func(w http.ResponseWriter, r *http.Request) {
+        http.Redirect(w, r, "/srm", http.StatusMovedPermanently)
+    })
+    server.HandleFunc("/agent/", func(w http.ResponseWriter, r *http.Request) {
+        srmPath := "/srm" + strings.TrimPrefix(r.URL.Path, "/agent")
+        http.Redirect(w, r, srmPath, http.StatusMovedPermanently)
+    })
 
     // /admin/login: explicit route (must come before /admin/ to take precedence)
     server.HandleFunc("/admin/login", func(w http.ResponseWriter, r *http.Request) {
@@ -549,6 +640,11 @@ func GetHttp() *http.ServeMux {
         }(session)
     }
     server.HandleFunc("/ws/connect", wsConnect)
+
+    // Catch-all: 404 for unknown routes. / redirects to /srm in middleware; landing served at /srm.
+    server.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        http.NotFound(w, r)
+    })
 
     return server
 }

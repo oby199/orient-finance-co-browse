@@ -5,7 +5,7 @@
 const CONFIG = window.OrientFinanceConfig || {
   BRAND_NAME: "Orient Finance Broker",
   PRODUCT_NAME: "Orient Finance Co-Browse",
-  TAGLINE: "Secure screen sharing with your advisor",
+  TAGLINE: "Secure screen sharing with your Sales Relationship Manager",
 };
 
 const iceConfig = {
@@ -490,7 +490,7 @@ function leaveRoom() {
   Object.values(AppState.pcs || {}).forEach((pc) => pc.close());
   if (AppState.pc) AppState.pc.close();
   Object.values(AppState.pingIntervals || {}).forEach(clearInterval);
-  window.location.href = getBaseUrl();
+  window.location.href = getBaseUrl() + "/srm";
 }
 
 // ——— Init ———

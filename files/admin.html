@@ -6,28 +6,54 @@
   <title>Admin — Orient Finance Co-Browse</title>
   <link rel="icon" href="/static/orient-finance-logo.png" type="image/png">
   <link rel="stylesheet" href="/static/bootstrap.min.css">
-  <link rel="stylesheet" href="/static/laplace-legacy.css">
+  <link rel="stylesheet" href="/static/layout.css">
+  <link rel="stylesheet" href="/static/sidebar.css">
+  <link rel="stylesheet" href="/static/components.css">
   <link rel="stylesheet" href="/static/admin.css">
 </head>
 <body>
-  <nav class="navbar admin-nav">
-    <a class="navbar-brand" href="/admin">
-      <img src="/static/orient-finance-logo.png" alt="Orient Finance" class="navbar-logo">
-      <span class="navbar-title">Admin — Orient Finance Co-Browse</span>
-    </a>
-    <div class="admin-nav-links">
-      <a href="/admin" class="admin-nav-link" data-route="/admin">Dashboard</a>
-      <a href="/admin/agents" class="admin-nav-link" data-route="/admin/agents">Agents</a>
-      <a href="/admin/settings" class="admin-nav-link" data-route="/admin/settings">Settings</a>
-      <a href="/admin/documents" class="admin-nav-link" data-route="/admin/documents">Documents</a>
-      <a href="/admin/onboarding-flow" class="admin-nav-link" data-route="/admin/onboarding-flow">Onboarding</a>
-      <a href="/admin/sessions" class="admin-nav-link" data-route="/admin/sessions">Sessions</a>
-    </div>
-    <a href="/logout" class="navbar-logout">Logout</a>
-  </nav>
-  <main class="admin-main container" id="adminContent">
-    <div class="admin-loading" id="adminLoading">Loading…</div>
-  </main>
+  <div class="app-layout has-sidebar">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <a href="/admin" class="sidebar-logo">
+          <img src="/static/orient-finance-logo.png" alt="Orient Finance">
+          <span class="sidebar-title">Admin — Orient Finance Co-Browse</span>
+        </a>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="/admin" class="sidebar-nav-link" data-route="/admin"><span class="nav-icon">🏠</span>Dashboard</a>
+        <a href="/admin/srms" class="sidebar-nav-link" data-route="/admin/srms"><span class="nav-icon">👤</span>Sales Relationship Managers</a>
+        <a href="/admin/settings" class="sidebar-nav-link" data-route="/admin/settings"><span class="nav-icon">⚙</span>Settings</a>
+        <a href="/admin/documents" class="sidebar-nav-link" data-route="/admin/documents"><span class="nav-icon">📄</span>Documents</a>
+        <a href="/admin/onboarding" class="sidebar-nav-link" data-route="/admin/onboarding"><span class="nav-icon">🔁</span>Onboarding Flow</a>
+        <a href="/admin/sessions" class="sidebar-nav-link" data-route="/admin/sessions"><span class="nav-icon">📊</span>Sessions</a>
+        <a href="/admin/audit" class="sidebar-nav-link" data-route="/admin/audit"><span class="nav-icon">📝</span>Audit Log</a>
+      </nav>
+      <div class="sidebar-footer">
+        <a href="/logout" class="sidebar-logout" style="text-decoration:none;display:flex;align-items:center;gap:12px;color:inherit;">
+          <span class="nav-icon">🚪</span>Logout
+        </a>
+      </div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <main class="main-content">
+      <header class="topbar">
+        <button type="button" class="topbar-hamburger" id="sidebarToggle" aria-label="Menu">☰</button>
+        <h1 class="topbar-title" id="pageTitle">Dashboard</h1>
+        <div class="topbar-actions">
+          <button type="button" class="topbar-srm-portal-btn" id="btnOpenSRMPortal" title="Open SRM Portal in new tab" style="display:none;">
+            <span aria-hidden="true">↗</span> Open SRM Portal
+          </button>
+          <span class="topbar-user" id="topbarUser">Admin</span>
+        </div>
+      </header>
+      <section class="page-content">
+        <div class="admin-loading" id="adminLoading">Loading…</div>
+        <div id="adminContent"></div>
+      </section>
+    </main>
+  </div>
+  <script src="/static/toast.js"></script>
   <script src="/static/admin.js"></script>
 </body>
 </html>

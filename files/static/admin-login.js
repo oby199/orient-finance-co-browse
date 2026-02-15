@@ -5,6 +5,12 @@
   const btn = document.getElementById("btnLogin");
   const errEl = document.getElementById("loginError");
 
+  // If we're on /admin/login but don't have the login form, we may have cached wrong page
+  if (window.location.pathname.indexOf("/admin/login") >= 0 && !document.getElementById("loginForm")) {
+    window.location.reload();
+    return;
+  }
+
   async function checkAuthAndRedirect() {
     const pathname = window.location.pathname || "/";
     if (!pathname.startsWith("/admin")) return false;
